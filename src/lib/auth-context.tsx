@@ -13,6 +13,7 @@ import type { NotificationPrefs, Profile } from "@/lib/types";
 type AuthContextValue = {
   profile: Profile | null;
   checked: boolean;
+  isAnonymous: boolean;
   login: (nickname?: string) => Promise<void>;
   logout: () => Promise<void>;
   updateNickname: (nickname: string) => Promise<void>;
@@ -20,9 +21,16 @@ type AuthContextValue = {
   updateNotificationPrefs: (prefs: NotificationPrefs) => Promise<void>;
   updateBio: (bio: string) => Promise<void>;
   updateCoverUrl: (coverUrl: string | null) => Promise<void>;
+  updateAvatarUrl: (avatarUrl: string | null) => Promise<void>;
   updatePinnedPost: (postId: string | null) => Promise<void>;
   deleteAccount: () => Promise<void>;
+  setAccountPassword: (password: string) => Promise<void>;
+  loginWithPassword: (handle: string, password: string) => Promise<void>;
 };
+
+function handleLoginEmail(handle: string) {
+  return `${handle.trim().toLowerCase()}@sns.local`;
+}
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
@@ -34,6 +42,7 @@ function toProfile(row: {
   theme_color: string | null;
   bio: string | null;
   cover_url: string | null;
+  avatar_url: string | null;
   pinned_post_id: string | null;
 }): Profile {
   return {
@@ -44,6 +53,7 @@ function toProfile(row: {
     themeColor: row.theme_color,
     bio: row.bio,
     coverUrl: row.cover_url,
+    avatarUrl: row.avatar_url,
     pinnedPostId: row.pinned_post_id,
   };
 }
@@ -51,7 +61,9 @@ function toProfile(row: {
 async function fetchProfile(userId: string): Promise<Profile | null> {
   const { data } = await supabase
     .from("sns_profiles")
-    .select("id, handle, display_name, created_at, theme_color, bio, cover_url, pinned_post_id")
+    .select(
+      "id, handle, display_name, created_at, theme_color, bio, cover_url, avatar_url, pinned_post_id",
+    )
     .eq("id", userId)
     .single();
   return data ? toProfile(data) : null;
@@ -60,25 +72,28 @@ async function fetchProfile(userId: string): Promise<Profile | null> {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [checked, setChecked] = useState(false);
+  const [isAnonymous, setIsAnonymous] = useState(true);
 
   useEffect(() => {
     let active = true;
 
-    async function applySession(userId: string | undefined) {
+    async function applySession(session: { user: { id: string; is_anonymous?: boolean } } | null | undefined) {
+      const userId = session?.user.id;
       const nextProfile = userId ? await fetchProfile(userId) : null;
       if (!active) return;
       setProfile(nextProfile);
+      setIsAnonymous(session?.user.is_anonymous ?? true);
       setChecked(true);
     }
 
     supabase.auth.getSession().then(({ data }) => {
-      applySession(data.session?.user.id);
+      applySession(data.session);
     });
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      applySession(session?.user.id);
+      applySession(session);
     });
 
     return () => {
@@ -170,6 +185,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile({ ...profile, coverUrl });
   }
 
+  async function updateAvatarUrl(avatarUrl: string | null) {
+    if (!profile) throw new Error("ログインしていません");
+    const { error } = await supabase
+      .from("sns_profiles")
+      .update({ avatar_url: avatarUrl })
+      .eq("id", profile.id);
+    if (error) throw error;
+    setProfile({ ...profile, avatarUrl });
+  }
+
   async function updatePinnedPost(postId: string | null) {
     if (!profile) throw new Error("ログインしていません");
     const { error } = await supabase
@@ -188,11 +213,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(null);
   }
 
+  async function setAccountPassword(password: string) {
+    if (!profile) throw new Error("ログインしていません");
+    const { error } = await supabase.auth.updateUser({
+      email: handleLoginEmail(profile.handle),
+      password,
+    });
+    if (error) throw error;
+    setIsAnonymous(false);
+  }
+
+  async function loginWithPassword(handle: string, password: string) {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: handleLoginEmail(handle),
+      password,
+    });
+    if (error) throw error;
+    const userId = data.user?.id;
+    if (!userId) throw new Error("ログインに失敗しました");
+    setProfile(await fetchProfile(userId));
+    setIsAnonymous(false);
+  }
+
   return (
     <AuthContext.Provider
       value={{
         profile,
         checked,
+        isAnonymous,
         login,
         logout,
         updateNickname,
@@ -200,8 +248,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         updateNotificationPrefs,
         updateBio,
         updateCoverUrl,
+        updateAvatarUrl,
         updatePinnedPost,
         deleteAccount,
+        setAccountPassword,
+        loginWithPassword,
       }}
     >
       {children}

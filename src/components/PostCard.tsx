@@ -302,6 +302,7 @@ export function PostCard({
           <Avatar
             name={post.authorDisplayName}
             handle={post.authorHandle}
+            avatarUrl={post.authorAvatarUrl}
             className="h-10 w-10 text-sm"
           />
         </Link>

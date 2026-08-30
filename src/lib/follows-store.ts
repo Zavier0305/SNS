@@ -7,7 +7,9 @@ async function fetchProfilesByIds(ids: string[]): Promise<Profile[]> {
   if (ids.length === 0) return [];
   const { data } = await supabase
     .from("sns_profiles")
-    .select("id, handle, display_name, created_at, theme_color, bio, cover_url, pinned_post_id")
+    .select(
+      "id, handle, display_name, created_at, theme_color, bio, cover_url, avatar_url, pinned_post_id",
+    )
     .in("id", ids);
   return (data ?? []).map((row) => ({
     id: row.id,
@@ -17,6 +19,7 @@ async function fetchProfilesByIds(ids: string[]): Promise<Profile[]> {
     themeColor: row.theme_color,
     bio: row.bio,
     coverUrl: row.cover_url,
+    avatarUrl: row.avatar_url,
     pinnedPostId: row.pinned_post_id,
   }));
 }
@@ -51,7 +54,9 @@ export async function fetchSuggestedProfiles(userId: string, limit = 5): Promise
   ]);
   const { data } = await supabase
     .from("sns_profiles")
-    .select("id, handle, display_name, created_at, theme_color, bio, cover_url, pinned_post_id")
+    .select(
+      "id, handle, display_name, created_at, theme_color, bio, cover_url, avatar_url, pinned_post_id",
+    )
     .order("created_at", { ascending: false })
     .limit(limit + excluded.size);
   return (data ?? [])
@@ -65,6 +70,7 @@ export async function fetchSuggestedProfiles(userId: string, limit = 5): Promise
       themeColor: row.theme_color,
       bio: row.bio,
       coverUrl: row.cover_url,
+      avatarUrl: row.avatar_url,
       pinnedPostId: row.pinned_post_id,
     }));
 }

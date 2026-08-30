@@ -20,14 +20,29 @@ function colorForHandle(seed: string) {
 export function Avatar({
   name,
   handle,
+  avatarUrl,
   className = "h-10 w-10 text-sm",
 }: {
   name: string;
   handle: string;
+  avatarUrl?: string | null;
   className?: string;
 }) {
   const seed = handle || name || "?";
   const initial = (name || handle || "?").trim().charAt(0).toUpperCase();
+
+  if (avatarUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={avatarUrl}
+        alt=""
+        aria-hidden="true"
+        className={`shrink-0 rounded-full object-cover ${className}`}
+      />
+    );
+  }
+
   return (
     <span
       aria-hidden="true"

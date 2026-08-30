@@ -4,6 +4,7 @@ import { POST_IMAGE_BUCKET, supabase } from "@/lib/supabase/client";
 import type { NotificationPrefs, Profile } from "@/lib/types";
 
 export const MAX_COVER_IMAGE_BYTES = 5 * 1024 * 1024;
+export const MAX_AVATAR_IMAGE_BYTES = 5 * 1024 * 1024;
 
 export async function uploadCoverImage(userId: string, file: File): Promise<string> {
   if (file.size > MAX_COVER_IMAGE_BYTES) {
@@ -16,8 +17,19 @@ export async function uploadCoverImage(userId: string, file: File): Promise<stri
   return supabase.storage.from(POST_IMAGE_BUCKET).getPublicUrl(path).data.publicUrl;
 }
 
+export async function uploadAvatarImage(userId: string, file: File): Promise<string> {
+  if (file.size > MAX_AVATAR_IMAGE_BYTES) {
+    throw new Error("画像は5MB以下にしてください");
+  }
+  const ext = file.name.split(".").pop() ?? "jpg";
+  const path = `avatars/${userId}/${crypto.randomUUID()}.${ext}`;
+  const { error } = await supabase.storage.from(POST_IMAGE_BUCKET).upload(path, file);
+  if (error) throw error;
+  return supabase.storage.from(POST_IMAGE_BUCKET).getPublicUrl(path).data.publicUrl;
+}
+
 const PROFILE_COLUMNS =
-  "id, handle, display_name, created_at, theme_color, bio, cover_url, pinned_post_id";
+  "id, handle, display_name, created_at, theme_color, bio, cover_url, avatar_url, pinned_post_id";
 
 function toProfile(row: {
   id: string;
@@ -27,6 +39,7 @@ function toProfile(row: {
   theme_color: string | null;
   bio: string | null;
   cover_url: string | null;
+  avatar_url: string | null;
   pinned_post_id: string | null;
 }): Profile {
   return {
@@ -37,6 +50,7 @@ function toProfile(row: {
     themeColor: row.theme_color,
     bio: row.bio,
     coverUrl: row.cover_url,
+    avatarUrl: row.avatar_url,
     pinnedPostId: row.pinned_post_id,
   };
 }
@@ -49,6 +63,16 @@ export async function searchProfiles(query: string): Promise<Profile[]> {
     .select(PROFILE_COLUMNS)
     .or(`handle.ilike.%${trimmed}%,display_name.ilike.%${trimmed}%`)
     .limit(20);
+  return (data ?? []).map(toProfile);
+}
+
+export async function fetchProfilesByIds(ids: string[]): Promise<Profile[]> {
+  const uniqueIds = [...new Set(ids)];
+  if (uniqueIds.length === 0) return [];
+  const { data } = await supabase
+    .from("sns_profiles")
+    .select(PROFILE_COLUMNS)
+    .in("id", uniqueIds);
   return (data ?? []).map(toProfile);
 }
 

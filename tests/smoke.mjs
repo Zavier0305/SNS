@@ -168,6 +168,7 @@ async function run() {
     "/likes",
     "/servers",
     "/servers/s1",
+    "/battle",
     "/profile",
     "/u/smoketest",
     "/settings",

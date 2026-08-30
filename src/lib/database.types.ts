@@ -18,6 +18,76 @@ export type Database = {
         Update: { word?: string }
         Relationships: []
       }
+      sns_battles: {
+        Row: {
+          challenger_followers: number
+          challenger_id: string
+          challenger_likes: number
+          challenger_posts: number
+          challenger_round_wins: number
+          created_at: string
+          id: string
+          opponent_followers: number
+          opponent_id: string
+          opponent_likes: number
+          opponent_posts: number
+          opponent_round_wins: number
+          winner_id: string | null
+        }
+        Insert: {
+          challenger_followers: number
+          challenger_id: string
+          challenger_likes: number
+          challenger_posts: number
+          challenger_round_wins: number
+          created_at?: string
+          id?: string
+          opponent_followers: number
+          opponent_id: string
+          opponent_likes: number
+          opponent_posts: number
+          opponent_round_wins: number
+          winner_id?: string | null
+        }
+        Update: {
+          challenger_followers?: number
+          challenger_id?: string
+          challenger_likes?: number
+          challenger_posts?: number
+          challenger_round_wins?: number
+          created_at?: string
+          id?: string
+          opponent_followers?: number
+          opponent_id?: string
+          opponent_likes?: number
+          opponent_posts?: number
+          opponent_round_wins?: number
+          winner_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sns_battles_challenger_id_fkey"
+            columns: ["challenger_id"]
+            isOneToOne: false
+            referencedRelation: "sns_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sns_battles_opponent_id_fkey"
+            columns: ["opponent_id"]
+            isOneToOne: false
+            referencedRelation: "sns_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sns_battles_winner_id_fkey"
+            columns: ["winner_id"]
+            isOneToOne: false
+            referencedRelation: "sns_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sns_blocks: {
         Row: { blocked_user_id: string; created_at: string; user_id: string }
         Insert: { blocked_user_id: string; created_at?: string; user_id: string }
@@ -440,6 +510,7 @@ export type Database = {
       }
       sns_profiles: {
         Row: {
+          avatar_url: string | null
           bio: string | null
           cover_url: string | null
           created_at: string
@@ -453,6 +524,7 @@ export type Database = {
           theme_color: string | null
         }
         Insert: {
+          avatar_url?: string | null
           bio?: string | null
           cover_url?: string | null
           created_at?: string
@@ -466,6 +538,7 @@ export type Database = {
           theme_color?: string | null
         }
         Update: {
+          avatar_url?: string | null
           bio?: string | null
           cover_url?: string | null
           created_at?: string
@@ -660,6 +733,7 @@ export type Database = {
     Views: {
       sns_feed: {
         Row: {
+          author_avatar_url: string | null
           author_display_name: string | null
           author_handle: string | null
           author_id: string | null
@@ -724,11 +798,30 @@ export type Database = {
         Args: { p_server_id: string; p_user_id: string }
         Returns: undefined
       }
+      sns_create_battle: {
+        Args: { p_opponent_id: string }
+        Returns: {
+          challenger_followers: number
+          challenger_id: string
+          challenger_likes: number
+          challenger_posts: number
+          challenger_round_wins: number
+          created_at: string
+          id: string
+          opponent_followers: number
+          opponent_id: string
+          opponent_likes: number
+          opponent_posts: number
+          opponent_round_wins: number
+          winner_id: string | null
+        }
+      }
       sns_create_server_invite: {
         Args: { p_server_id: string }
         Returns: string
       }
       sns_delete_account: { Args: never; Returns: undefined }
+      sns_is_blocked_by: { Args: { p_user_id: string }; Returns: boolean }
       sns_join_server: { Args: { p_server_id: string }; Returns: undefined }
       sns_join_via_invite: { Args: { p_invite_id: string }; Returns: string }
       sns_kick_member: {

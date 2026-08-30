@@ -6,6 +6,7 @@ export type Profile = {
   themeColor: string | null;
   bio: string | null;
   coverUrl: string | null;
+  avatarUrl: string | null;
   pinnedPostId: string | null;
 };
 
@@ -22,6 +23,7 @@ export type Post = {
   authorId: string;
   authorHandle: string;
   authorDisplayName: string;
+  authorAvatarUrl: string | null;
   content: string;
   imageUrls: string[];
   createdAt: string;

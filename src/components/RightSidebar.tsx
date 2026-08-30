@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useTrendingTags } from "@/lib/discovery-store";
-import { ServersIcon, SparkleIcon, SettingsIcon } from "@/components/icons";
+import { ServersIcon, SparkleIcon, SettingsIcon, BattleIcon } from "@/components/icons";
 
 export function RightSidebar() {
   const { tags } = useTrendingTags();
@@ -38,6 +38,10 @@ export function RightSidebar() {
         <Link href="/servers" className="flex items-center gap-2 hover:underline">
           <ServersIcon className="h-4 w-4 text-black/40 dark:text-white/40" />
           サーバー一覧
+        </Link>
+        <Link href="/battle" className="flex items-center gap-2 hover:underline">
+          <BattleIcon className="h-4 w-4 text-black/40 dark:text-white/40" />
+          バトル履歴
         </Link>
         <Link href="/admin" className="flex items-center gap-2 hover:underline">
           <SettingsIcon className="h-4 w-4 text-black/40 dark:text-white/40" />

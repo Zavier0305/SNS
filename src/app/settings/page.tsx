@@ -14,7 +14,8 @@ import { usePushNotifications } from "@/lib/push-notifications";
 import type { NotificationPrefs, Profile } from "@/lib/types";
 
 export default function SettingsPage() {
-  const { profile, checked, updateNotificationPrefs, deleteAccount } = useAuth();
+  const { profile, checked, isAnonymous, updateNotificationPrefs, deleteAccount, setAccountPassword } =
+    useAuth();
   const router = useRouter();
   const { showToast } = useToast();
   const confirm = useConfirm();
@@ -26,6 +27,9 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [password, setPassword] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
+  const [savingPassword, setSavingPassword] = useState(false);
   const { supported: pushSupported, permission: pushPermission, requestPermission } =
     usePushNotifications();
 
@@ -146,6 +150,30 @@ export default function SettingsPage() {
       showToast("エクスポートに失敗しました", "error");
     } finally {
       setExporting(false);
+    }
+  }
+
+  async function handleSetPassword(e: FormEvent) {
+    e.preventDefault();
+    if (savingPassword) return;
+    if (password.length < 6) {
+      showToast("パスワードは6文字以上にしてください", "error");
+      return;
+    }
+    if (password !== passwordConfirm) {
+      showToast("パスワードが一致しません", "error");
+      return;
+    }
+    setSavingPassword(true);
+    try {
+      await setAccountPassword(password);
+      setPassword("");
+      setPasswordConfirm("");
+      showToast("パスワードを設定しました");
+    } catch {
+      showToast("パスワードの設定に失敗しました", "error");
+    } finally {
+      setSavingPassword(false);
     }
   }
 
@@ -345,6 +373,43 @@ export default function SettingsPage() {
               >
                 {exporting ? "エクスポート中..." : "データをエクスポート"}
               </button>
+            </section>
+            <section className="p-4 border-b border-black/10 dark:border-white/10">
+              <h2 className="text-sm font-semibold mb-2">アカウントを保護</h2>
+              {isAnonymous ? (
+                <>
+                  <p className="text-xs text-black/50 dark:text-white/50 mb-2">
+                    パスワードを設定すると、ブラウザやデバイスが変わっても「@{profile.handle}」＋パスワードで同じアカウントに戻ってこられます。
+                  </p>
+                  <form onSubmit={handleSetPassword} className="flex flex-col gap-2 max-w-xs">
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="パスワード（6文字以上）"
+                      className="rounded-md border border-black/10 dark:border-white/20 bg-transparent px-2 py-1.5 text-sm outline-none focus:border-black/30 dark:focus:border-white/40"
+                    />
+                    <input
+                      type="password"
+                      value={passwordConfirm}
+                      onChange={(e) => setPasswordConfirm(e.target.value)}
+                      placeholder="パスワード（確認）"
+                      className="rounded-md border border-black/10 dark:border-white/20 bg-transparent px-2 py-1.5 text-sm outline-none focus:border-black/30 dark:focus:border-white/40"
+                    />
+                    <button
+                      type="submit"
+                      disabled={savingPassword || !password || !passwordConfirm}
+                      className="self-start text-sm rounded-full bg-foreground text-background px-3 py-1.5 disabled:opacity-40"
+                    >
+                      {savingPassword ? "設定中..." : "パスワードを設定"}
+                    </button>
+                  </form>
+                </>
+              ) : (
+                <p className="text-xs text-green-600 dark:text-green-400">
+                  ✓ パスワードでこのアカウントを保護しています
+                </p>
+              )}
             </section>
             <section className="p-4">
               <h2 className="text-sm font-semibold mb-2 text-red-500">危険な操作</h2>

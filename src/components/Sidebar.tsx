@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useNotificationCount } from "@/lib/notification-count-context";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { Avatar } from "@/components/Avatar";
 import {
   HomeIcon,
   SearchIcon,
@@ -14,11 +15,11 @@ import {
   BookmarkIcon,
   ServersIcon,
   SettingsIcon,
-  UserIcon,
   LogoutIcon,
   PlusIcon,
   MenuIcon,
   CloseIcon,
+  BattleIcon,
 } from "@/components/icons";
 
 const RAIL_ITEMS = [
@@ -31,6 +32,7 @@ const DRAWER_ITEMS = [
   { href: "/explore", label: "発見", Icon: SparkleIcon },
   { href: "/bookmarks", label: "ブックマーク", Icon: BookmarkIcon },
   { href: "/servers", label: "サーバー", Icon: ServersIcon },
+  { href: "/battle", label: "バトル", Icon: BattleIcon },
   { href: "/settings", label: "設定", Icon: SettingsIcon },
 ] as const;
 
@@ -111,9 +113,14 @@ export function Sidebar() {
             href="/profile"
             title={profile.displayName}
             aria-label="プロフィール"
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-black/10 dark:bg-white/10 hover:opacity-80"
+            className="block rounded-full hover:opacity-80"
           >
-            <UserIcon className="h-4 w-4" />
+            <Avatar
+              name={profile.displayName}
+              handle={profile.handle}
+              avatarUrl={profile.avatarUrl}
+              className="h-10 w-10 text-sm"
+            />
           </Link>
         </div>
       </aside>
@@ -171,9 +178,12 @@ export function Sidebar() {
                   onClick={() => setDrawerOpen(false)}
                   className="flex flex-1 min-w-0 items-center gap-3 px-2 py-2"
                 >
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-black/10 dark:bg-white/10">
-                    <UserIcon className="h-4 w-4" />
-                  </span>
+                  <Avatar
+                    name={profile.displayName}
+                    handle={profile.handle}
+                    avatarUrl={profile.avatarUrl}
+                    className="h-8 w-8 text-xs"
+                  />
                   <span className="min-w-0">
                     <span className="block truncate text-sm font-medium">
                       {profile.displayName}

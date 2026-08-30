@@ -29,6 +29,7 @@ function toPost(
     authorId: row.author_id,
     authorHandle: row.author_handle ?? "",
     authorDisplayName: row.author_display_name ?? "名無しさん",
+    authorAvatarUrl: row.author_avatar_url,
     content: row.content ?? "",
     imageUrls: row.image_urls ?? (row.image_url ? [row.image_url] : []),
     createdAt: row.created_at ?? new Date().toISOString(),

@@ -203,6 +203,7 @@ export function PostForm({
         <Avatar
           name={profile?.displayName ?? ""}
           handle={profile?.handle ?? ""}
+          avatarUrl={profile?.avatarUrl}
           className="h-9 w-9 text-sm"
         />
         <span className="text-sm text-black/40 dark:text-white/40">いまどうしてる？</span>

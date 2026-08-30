@@ -222,6 +222,15 @@ export function CloseIcon(props: IconProps) {
   );
 }
 
+export function BattleIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M4 4l7 7M4 20l7-7M20 4l-7 7M20 20l-7-7" />
+      <circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none" />
+    </Base>
+  );
+}
+
 export function BookmarkFilledIcon(props: IconProps) {
   return (
     <Base fill="currentColor" {...props}>

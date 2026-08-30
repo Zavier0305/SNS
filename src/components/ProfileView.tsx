@@ -13,12 +13,16 @@ import {
   toggleMute,
 } from "@/lib/posts-store";
 import { fetchFollowCounts } from "@/lib/follows-store";
-import { uploadCoverImage } from "@/lib/profiles-store";
+import { isBlockedBy } from "@/lib/moderation-lists-store";
+import { uploadAvatarImage, uploadCoverImage } from "@/lib/profiles-store";
+import { battleRecord, createBattle, fetchMyBattles, type Battle } from "@/lib/battles-store";
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/lib/toast-context";
 import { useConfirm } from "@/lib/confirm-context";
 import { PostCard } from "@/components/PostCard";
 import { PostListSkeleton } from "@/components/PostCardSkeleton";
+import { Avatar } from "@/components/Avatar";
+import { BattleResultModal } from "@/components/BattleResultModal";
 import type { Post, Profile } from "@/lib/types";
 
 export function ProfileView({
@@ -32,8 +36,14 @@ export function ProfileView({
   isFollowing: boolean;
   onFollowChange?: () => void;
 }) {
-  const { profile: myProfile, updateNickname, updateThemeColor, updateBio, updateCoverUrl } =
-    useAuth();
+  const {
+    profile: myProfile,
+    updateNickname,
+    updateThemeColor,
+    updateBio,
+    updateCoverUrl,
+    updateAvatarUrl,
+  } = useAuth();
   const { showToast } = useToast();
   const confirm = useConfirm();
   const isOwnProfile = currentUserId === profile.id;
@@ -56,6 +66,12 @@ export function ProfileView({
   const [savingBio, setSavingBio] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
   const coverInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const [blockedByThem, setBlockedByThem] = useState(false);
+  const [myBattles, setMyBattles] = useState<Battle[]>([]);
+  const [challenging, setChallenging] = useState(false);
+  const [battleResult, setBattleResult] = useState<Battle | null>(null);
 
   const refresh = useMemo(
     () => () => {
@@ -80,7 +96,24 @@ export function ProfileView({
         setBlocked(blockedIds.includes(profile.id));
       },
     );
+    isBlockedBy(profile.id).then(setBlockedByThem);
   }, [currentUserId, isOwnProfile, profile.id]);
+
+  const refreshBattles = useMemo(
+    () => () => {
+      fetchMyBattles(profile.id).then(setMyBattles);
+    },
+    [profile.id],
+  );
+
+  useEffect(() => {
+    refreshBattles();
+  }, [refreshBattles]);
+
+  const record = useMemo(
+    () => battleRecord(myBattles, profile.id),
+    [myBattles, profile.id],
+  );
 
   useEffect(() => {
     fetchFollowCounts(profile.id).then(setFollowCounts);
@@ -229,6 +262,36 @@ export function ProfileView({
     }
   }
 
+  async function handleAvatarChange(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !currentUserId) return;
+    setUploadingAvatar(true);
+    try {
+      const url = await uploadAvatarImage(currentUserId, file);
+      await updateAvatarUrl(url);
+      showToast("アイコンを更新しました");
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "アップロードに失敗しました", "error");
+    } finally {
+      setUploadingAvatar(false);
+      if (avatarInputRef.current) avatarInputRef.current.value = "";
+    }
+  }
+
+  async function handleBattle() {
+    if (!currentUserId || challenging) return;
+    setChallenging(true);
+    try {
+      const battle = await createBattle(profile.id);
+      setBattleResult(battle);
+      refreshBattles();
+    } catch {
+      showToast("バトルの開始に失敗しました", "error");
+    } finally {
+      setChallenging(false);
+    }
+  }
+
   function toggleSelectMode() {
     setSelectMode((prev) => !prev);
     setSelectedIds(new Set());
@@ -297,8 +360,36 @@ export function ProfileView({
             />
           </label>
         )}
+        <div className="absolute -bottom-8 left-4">
+          <div className="relative">
+            <Avatar
+              name={displayedProfile.displayName}
+              handle={profile.handle}
+              avatarUrl={displayedProfile.avatarUrl}
+              className="h-16 w-16 text-xl border-4 border-background"
+            />
+            {isOwnProfile && (
+              <label className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 text-white text-[9px] opacity-0 hover:opacity-100 cursor-pointer transition-opacity">
+                {uploadingAvatar ? "…" : "変更"}
+                <input
+                  ref={avatarInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleAvatarChange}
+                  disabled={uploadingAvatar}
+                  className="hidden"
+                />
+              </label>
+            )}
+          </div>
+        </div>
       </div>
-      <div className="p-4 border-b border-black/10 dark:border-white/10">
+      {!isOwnProfile && blockedByThem && (
+        <div className="px-4 py-2 bg-red-500/10 text-red-500 text-xs">
+          このユーザーからブロックされています
+        </div>
+      )}
+      <div className="p-4 pt-10 border-b border-black/10 dark:border-white/10">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-lg font-semibold">
@@ -348,6 +439,13 @@ export function ProfileView({
               >
                 {blocked ? "ブロック中" : "ブロック"}
               </button>
+              <button
+                onClick={handleBattle}
+                disabled={challenging}
+                className="text-xs rounded-full border border-amber-400 text-amber-600 dark:text-amber-300 px-2 py-1 disabled:opacity-40"
+              >
+                {challenging ? "対戦中..." : "⚔️ バトル"}
+              </button>
             </div>
           )}
         </div>
@@ -356,6 +454,11 @@ export function ProfileView({
           <span>投稿 {stats.postCount}</span>
           <span>累計いいね {stats.totalLikes}</span>
           <span>🏆殿堂入り {stats.preservedCount}</span>
+          {(record.wins > 0 || record.losses > 0 || record.draws > 0) && (
+            <span>
+              ⚔️ {record.wins}勝{record.losses}敗{record.draws > 0 ? `${record.draws}分` : ""}
+            </span>
+          )}
         </div>
         <div className="mt-1.5 flex gap-4 text-xs">
           <Link href={`/u/${profile.handle}/follows/following`} className="hover:underline">
@@ -483,6 +586,15 @@ export function ProfileView({
             </div>
           </div>
         ))
+      )}
+      {battleResult && currentUserId && (
+        <BattleResultModal
+          battle={battleResult}
+          challengerName={myProfile?.displayName ?? "あなた"}
+          opponentName={profile.displayName}
+          viewerIsChallenger={battleResult.challengerId === currentUserId}
+          onClose={() => setBattleResult(null)}
+        />
       )}
     </div>
   );
