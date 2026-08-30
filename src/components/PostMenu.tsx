@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { reportContent, toggleBlock, toggleMute } from "@/lib/posts-store";
 import { useToast } from "@/lib/toast-context";
+import { useConfirm } from "@/lib/confirm-context";
 
 const REPORT_REASONS = [
   "スパム・宣伝",
@@ -30,6 +31,7 @@ export function PostMenu({
   const [reportAlsoBlock, setReportAlsoBlock] = useState(false);
   const [reporting, setReporting] = useState(false);
   const { showToast } = useToast();
+  const confirm = useConfirm();
 
   async function submitReport() {
     if (reporting) return;
@@ -68,7 +70,14 @@ export function PostMenu({
   }
 
   async function handleBlock() {
-    if (!confirm("このユーザーをブロックしますか？（相互フォローは解除されます）")) return;
+    if (
+      !(await confirm({
+        message: "このユーザーをブロックしますか？（相互フォローは解除されます）",
+        confirmLabel: "ブロック",
+        danger: true,
+      }))
+    )
+      return;
     try {
       await toggleBlock(authorId, currentUserId, false);
       showToast("ブロックしました");

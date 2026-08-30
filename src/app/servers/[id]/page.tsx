@@ -4,6 +4,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/lib/toast-context";
+import { useConfirm } from "@/lib/confirm-context";
 import { fetchPostsByChannel } from "@/lib/posts-store";
 import {
   approveJoinRequest,
@@ -32,6 +33,7 @@ import {
 import { isChannelUnread, markChannelRead } from "@/lib/channel-read-tracking";
 import { PostForm } from "@/components/PostForm";
 import { PostCard } from "@/components/PostCard";
+import { PostListSkeleton } from "@/components/PostCardSkeleton";
 import { LockIcon } from "@/components/icons";
 import type { Post } from "@/lib/types";
 
@@ -39,6 +41,7 @@ export default function ServerPage() {
   const { profile, checked } = useAuth();
   const router = useRouter();
   const { showToast } = useToast();
+  const confirm = useConfirm();
   const params = useParams<{ id: string }>();
 
   const [server, setServer] = useState<Server | null | undefined>(undefined);
@@ -240,7 +243,8 @@ export default function ServerPage() {
   }
 
   async function handleKick(userId: string) {
-    if (!confirm("このメンバーを退出させますか？")) return;
+    if (!(await confirm({ message: "このメンバーを退出させますか？", confirmLabel: "退出させる", danger: true })))
+      return;
     try {
       await kickMember(params.id, userId);
       refreshManage();
@@ -279,7 +283,14 @@ export default function ServerPage() {
   }
 
   async function handleDeleteServer() {
-    if (!confirm("このサーバーを削除しますか？この操作は取り消せません。")) return;
+    if (
+      !(await confirm({
+        message: "このサーバーを削除しますか？この操作は取り消せません。",
+        confirmLabel: "削除",
+        danger: true,
+      }))
+    )
+      return;
     try {
       await deleteServer(params.id);
       showToast("サーバーを削除しました");
@@ -294,7 +305,8 @@ export default function ServerPage() {
       showToast("最後のチャンネルは削除できません", "error");
       return;
     }
-    if (!confirm("このチャンネルを削除しますか？")) return;
+    if (!(await confirm({ message: "このチャンネルを削除しますか？", confirmLabel: "削除", danger: true })))
+      return;
     try {
       await deleteChannel(channelId);
       setActiveChannelId(null);
@@ -629,7 +641,7 @@ export default function ServerPage() {
             )}
 
             {loadingPosts ? (
-              <p className="p-4 text-sm text-black/50 dark:text-white/50">読み込み中...</p>
+              <PostListSkeleton />
             ) : posts.length === 0 ? (
               <p className="p-4 text-sm text-black/50 dark:text-white/50">
                 まだ投稿がありません。

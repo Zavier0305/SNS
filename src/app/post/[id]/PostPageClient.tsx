@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { fetchPostsByIds, useFollowingIds } from "@/lib/posts-store";
 import { PostCard } from "@/components/PostCard";
+import { PostListSkeleton } from "@/components/PostCardSkeleton";
 import type { Post } from "@/lib/types";
 
 export function PostPageClient({ postId }: { postId: string }) {
@@ -34,7 +35,7 @@ export function PostPageClient({ postId }: { postId: string }) {
     <>
       <main className="flex-1 w-full max-w-xl mx-auto">
         {post === undefined ? (
-          <p className="p-4 text-sm text-black/50 dark:text-white/50">読み込み中...</p>
+          <PostListSkeleton count={1} />
         ) : post === null ? (
           <p className="p-4 text-sm text-black/50 dark:text-white/50">
             投稿が見つかりません（削除された可能性があります）。

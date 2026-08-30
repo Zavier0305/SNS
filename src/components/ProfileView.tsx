@@ -16,7 +16,9 @@ import { fetchFollowCounts } from "@/lib/follows-store";
 import { uploadCoverImage } from "@/lib/profiles-store";
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/lib/toast-context";
+import { useConfirm } from "@/lib/confirm-context";
 import { PostCard } from "@/components/PostCard";
+import { PostListSkeleton } from "@/components/PostCardSkeleton";
 import type { Post, Profile } from "@/lib/types";
 
 export function ProfileView({
@@ -33,6 +35,7 @@ export function ProfileView({
   const { profile: myProfile, updateNickname, updateThemeColor, updateBio, updateCoverUrl } =
     useAuth();
   const { showToast } = useToast();
+  const confirm = useConfirm();
   const isOwnProfile = currentUserId === profile.id;
   const displayedThemeColor = isOwnProfile ? myProfile?.themeColor : profile.themeColor;
   const displayedProfile = isOwnProfile ? myProfile ?? profile : profile;
@@ -146,7 +149,14 @@ export function ProfileView({
 
   async function handleBlock() {
     if (!currentUserId) return;
-    if (!blocked && !confirm("このユーザーをブロックしますか？（相互フォローは解除されます）")) {
+    if (
+      !blocked &&
+      !(await confirm({
+        message: "このユーザーをブロックしますか？（相互フォローは解除されます）",
+        confirmLabel: "ブロック",
+        danger: true,
+      }))
+    ) {
       return;
     }
     const next = !blocked;
@@ -235,7 +245,14 @@ export function ProfileView({
 
   async function handleBulkDelete() {
     if (!currentUserId || selectedIds.size === 0 || bulkDeleting) return;
-    if (!confirm(`選択した${selectedIds.size}件の投稿を削除しますか？`)) return;
+    if (
+      !(await confirm({
+        message: `選択した${selectedIds.size}件の投稿を削除しますか？`,
+        confirmLabel: "削除",
+        danger: true,
+      }))
+    )
+      return;
     setBulkDeleting(true);
     try {
       await Promise.all(
@@ -438,7 +455,7 @@ export function ProfileView({
         </div>
       )}
       {loading ? (
-        <p className="p-4 text-sm text-black/50 dark:text-white/50">読み込み中...</p>
+        <PostListSkeleton />
       ) : posts.length === 0 ? (
         <p className="p-4 text-sm text-black/50 dark:text-white/50">
           まだ投稿がありません。

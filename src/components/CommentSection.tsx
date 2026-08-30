@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { addComment, deleteComment, useComments } from "@/lib/comments-store";
 import { useToast } from "@/lib/toast-context";
 import { CommentLikeButton } from "@/components/CommentLikeButton";
@@ -58,6 +58,10 @@ export function CommentSection({
     }
   }
 
+  useEffect(() => {
+    if (currentUserId) inputRef.current?.focus();
+  }, [currentUserId]);
+
   function handleReply(handle: string) {
     if (!handle) return;
     setContent((prev) => (prev.startsWith(`@${handle} `) ? prev : `@${handle} ${prev}`));
@@ -113,7 +117,7 @@ export function CommentSection({
           <button
             type="submit"
             disabled={!content.trim() || submitting}
-            className="text-xs rounded-full bg-foreground text-background px-3 disabled:opacity-40"
+            className="text-xs rounded-full bg-foreground text-background px-3 disabled:opacity-40 transition active:scale-95"
           >
             送信
           </button>

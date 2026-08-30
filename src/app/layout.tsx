@@ -2,10 +2,12 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AuthProvider } from "@/lib/auth-context";
 import { ToastProvider } from "@/lib/toast-context";
+import { ConfirmProvider } from "@/lib/confirm-context";
 import { NotificationCountProvider } from "@/lib/notification-count-context";
 import { Sidebar } from "@/components/Sidebar";
 import { RightSidebar } from "@/components/RightSidebar";
 import { BottomNav } from "@/components/BottomNav";
+import { OnboardingWelcome } from "@/components/OnboardingWelcome";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -41,18 +43,21 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full pb-14 sm:pb-0">
         <ToastProvider>
-          <AuthProvider>
-            <NotificationCountProvider>
-              <div className="min-h-full sm:flex sm:justify-center">
-                <Sidebar />
-                <div className="flex-1 flex flex-col min-w-0 sm:max-w-2xl bg-black/[0.015] dark:bg-white/[0.02]">
-                  {children}
+          <ConfirmProvider>
+            <AuthProvider>
+              <NotificationCountProvider>
+                <div className="min-h-full sm:flex sm:justify-center">
+                  <Sidebar />
+                  <div className="flex-1 flex flex-col min-w-0 sm:max-w-2xl bg-black/[0.015] dark:bg-white/[0.02]">
+                    {children}
+                  </div>
+                  <RightSidebar />
                 </div>
-                <RightSidebar />
-              </div>
-              <BottomNav />
-            </NotificationCountProvider>
-          </AuthProvider>
+                <BottomNav />
+                <OnboardingWelcome />
+              </NotificationCountProvider>
+            </AuthProvider>
+          </ConfirmProvider>
         </ToastProvider>
       </body>
     </html>

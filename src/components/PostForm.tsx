@@ -369,7 +369,7 @@ export function PostForm({
           <button
             type="submit"
             disabled={!content.trim() || submitting || cooldownSeconds > 0}
-            className="rounded-full bg-foreground text-background px-4 py-1.5 text-sm font-medium disabled:opacity-40"
+            className="rounded-full bg-foreground text-background px-4 py-1.5 text-sm font-medium disabled:opacity-40 transition active:scale-95"
           >
             {submitting ? "投稿中..." : "投稿する"}
           </button>

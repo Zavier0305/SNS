@@ -9,6 +9,7 @@ import { togglePin } from "@/lib/servers-store";
 import { toggleBookmark, useIsBookmarked } from "@/lib/bookmarks-store";
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/lib/toast-context";
+import { useConfirm } from "@/lib/confirm-context";
 import { supabase } from "@/lib/supabase/client";
 import { CommentSection } from "@/components/CommentSection";
 import { PollWidget } from "@/components/PollWidget";
@@ -151,6 +152,7 @@ export function PostCard({
   const [pinningProfile, setPinningProfile] = useState(false);
   const [showOwnMenu, setShowOwnMenu] = useState(false);
   const { showToast } = useToast();
+  const confirm = useConfirm();
   const { bookmarked, refresh: refreshBookmark } = useIsBookmarked(post.id, currentUserId);
   const isOwnPost = currentUserId === post.authorId;
   const days = remainingDays(post.expireAt);
@@ -279,7 +281,7 @@ export function PostCard({
 
   async function handleDelete() {
     if (!currentUserId || deleting) return;
-    if (!confirm("この投稿を削除しますか？")) return;
+    if (!(await confirm({ message: "この投稿を削除しますか？", confirmLabel: "削除", danger: true }))) return;
     setDeleting(true);
     try {
       await deletePost(post.id, currentUserId);
@@ -551,13 +553,16 @@ export function PostCard({
               disabled={!currentUserId}
               aria-label={liked ? "いいねを取り消す" : "いいねする"}
               aria-pressed={liked}
-              className={`flex items-center justify-center h-8 w-8 rounded-lg transition-colors ${
+              className={`flex items-center justify-center h-8 w-8 rounded-lg transition active:scale-75 ${
                 liked
                   ? "text-pink-500"
                   : "text-black/50 dark:text-white/50 hover:bg-pink-500/10 hover:text-pink-500"
               }`}
             >
-              <HeartIcon filled={liked} className="h-[18px] w-[18px]" />
+              <HeartIcon
+                filled={liked}
+                className={`h-[18px] w-[18px] transition-transform ${liked ? "scale-110" : ""}`}
+              />
             </button>
             {likeCount > 0 ? (
               <button
@@ -574,7 +579,7 @@ export function PostCard({
             onClick={() => setShowComments((v) => !v)}
             aria-label="コメントを表示"
             aria-expanded={showComments}
-            className="flex items-center gap-1 text-xs font-medium text-black/60 dark:text-white/60"
+            className="flex items-center gap-1 text-xs font-medium text-black/60 dark:text-white/60 transition active:scale-90"
           >
             <span className="flex items-center justify-center h-8 w-8 rounded-lg hover:bg-blue-500/10 hover:text-blue-500 transition-colors">
               <CommentIcon className="h-[18px] w-[18px]" />
@@ -587,7 +592,7 @@ export function PostCard({
             <button
               onClick={() => onQuote(post)}
               aria-label="引用して投稿"
-              className="flex items-center justify-center h-7 w-7 rounded-md text-black/50 dark:text-white/50 hover:bg-green-500/10 hover:text-green-500 transition-colors"
+              className="flex items-center justify-center h-7 w-7 rounded-md text-black/50 dark:text-white/50 hover:bg-green-500/10 hover:text-green-500 transition active:scale-90"
             >
               <RepostIcon className="h-4 w-4" />
             </button>
@@ -597,7 +602,7 @@ export function PostCard({
               onClick={handleBookmark}
               aria-label={bookmarked ? "ブックマークを解除" : "ブックマークする"}
               aria-pressed={bookmarked}
-              className={`flex items-center justify-center h-7 w-7 rounded-md transition-colors ${
+              className={`flex items-center justify-center h-7 w-7 rounded-md transition active:scale-90 ${
                 bookmarked
                   ? "text-blue-500"
                   : "text-black/50 dark:text-white/50 hover:bg-blue-500/10 hover:text-blue-500"
@@ -613,7 +618,7 @@ export function PostCard({
           <button
             onClick={handleShare}
             aria-label="共有する"
-            className="flex items-center justify-center h-7 w-7 rounded-md text-black/50 dark:text-white/50 hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+            className="flex items-center justify-center h-7 w-7 rounded-md text-black/50 dark:text-white/50 hover:bg-black/5 dark:hover:bg-white/10 transition active:scale-90"
           >
             <ShareIcon className="h-4 w-4" />
           </button>

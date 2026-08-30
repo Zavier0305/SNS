@@ -61,7 +61,7 @@ export function BottomNav() {
         aria-label="投稿する"
         className="flex-1 flex items-center justify-center py-2"
       >
-        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-foreground text-background -translate-y-1 shadow">
+        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-foreground text-background -translate-y-1 shadow transition active:scale-90">
           <PlusIcon className="h-5 w-5" />
         </span>
       </Link>

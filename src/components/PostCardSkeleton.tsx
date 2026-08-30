@@ -1,17 +1,22 @@
 export function PostCardSkeleton() {
   return (
-    <div className="p-4 border-b border-black/10 dark:border-white/10 animate-pulse">
-      <div className="flex items-center gap-2">
-        <div className="h-3 w-24 rounded bg-black/10 dark:bg-white/10" />
-        <div className="h-3 w-12 rounded bg-black/10 dark:bg-white/10" />
-      </div>
-      <div className="mt-3 space-y-2">
-        <div className="h-3 w-full rounded bg-black/10 dark:bg-white/10" />
-        <div className="h-3 w-3/4 rounded bg-black/10 dark:bg-white/10" />
-      </div>
-      <div className="mt-3 flex gap-4">
-        <div className="h-3 w-8 rounded bg-black/10 dark:bg-white/10" />
-        <div className="h-3 w-8 rounded bg-black/10 dark:bg-white/10" />
+    <div className="p-4 mx-2 sm:mx-3 mb-3 rounded-xl border border-black/10 dark:border-white/10 bg-background shadow-sm animate-pulse">
+      <div className="flex gap-3">
+        <div className="h-10 w-10 shrink-0 rounded-full bg-black/10 dark:bg-white/10" />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <div className="h-3 w-24 rounded bg-black/10 dark:bg-white/10" />
+            <div className="h-3 w-12 rounded bg-black/10 dark:bg-white/10" />
+          </div>
+          <div className="mt-3 space-y-2">
+            <div className="h-3 w-full rounded bg-black/10 dark:bg-white/10" />
+            <div className="h-3 w-3/4 rounded bg-black/10 dark:bg-white/10" />
+          </div>
+          <div className="mt-3 flex gap-4">
+            <div className="h-3 w-8 rounded bg-black/10 dark:bg-white/10" />
+            <div className="h-3 w-8 rounded bg-black/10 dark:bg-white/10" />
+          </div>
+        </div>
       </div>
     </div>
   );

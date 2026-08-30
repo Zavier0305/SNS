@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { fetchLikedPosts, useFollowingIds } from "@/lib/posts-store";
 import { PostCard } from "@/components/PostCard";
+import { PostListSkeleton } from "@/components/PostCardSkeleton";
 import type { Post } from "@/lib/types";
 
 export default function LikesPage() {
@@ -41,7 +42,7 @@ export default function LikesPage() {
           いいねした投稿
         </h1>
         {loading ? (
-          <p className="p-4 text-sm text-black/50 dark:text-white/50">読み込み中...</p>
+          <PostListSkeleton />
         ) : posts.length === 0 ? (
           <p className="p-4 text-sm text-black/50 dark:text-white/50">
             いいねした投稿はまだありません。

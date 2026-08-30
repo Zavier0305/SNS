@@ -14,6 +14,7 @@ import {
   removeSearchHistoryItem,
 } from "@/lib/search-history";
 import { PostCard } from "@/components/PostCard";
+import { PostListSkeleton } from "@/components/PostCardSkeleton";
 import type { Post, Profile } from "@/lib/types";
 
 type Mode = "posts" | "users";
@@ -48,12 +49,13 @@ export default function SearchPage() {
     setHistory(getSearchHistory());
   }, []);
 
-  async function runSearch(q: string) {
+  async function runSearch(q: string, options: { recordHistory?: boolean } = {}) {
+    const { recordHistory = true } = options;
     const trimmed = q.trim();
     if (!trimmed) return;
     const tagMatch = trimmed.match(/^#([\w぀-ヿ一-鿿]+)$/);
     if (tagMatch) {
-      setHistory(addSearchHistory(trimmed));
+      if (recordHistory) setHistory(addSearchHistory(trimmed));
       router.push(`/tag/${tagMatch[1].toLowerCase()}`);
       return;
     }
@@ -66,11 +68,25 @@ export default function SearchPage() {
       } else {
         setUsers(await searchProfiles(q));
       }
-      setHistory(addSearchHistory(q));
+      if (recordHistory) setHistory(addSearchHistory(q));
     } finally {
       setLoading(false);
     }
   }
+
+  // Live search: once typing settles for a beat, search automatically instead
+  // of making the user press 検索 every time. Exact "#tag" queries are left to
+  // the tag-suggestion dropdown / explicit submit so this doesn't fire a
+  // partial-tag search on every keystroke.
+  useEffect(() => {
+    const trimmed = query.trim();
+    if (!trimmed || trimmed.startsWith("#")) return;
+    const timeout = setTimeout(() => {
+      runSearch(query, { recordHistory: false });
+    }, 400);
+    return () => clearTimeout(timeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, mode]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -218,7 +234,11 @@ export default function SearchPage() {
           </div>
         )}
         {loading ? (
-          <p className="p-4 text-sm text-black/50 dark:text-white/50">読み込み中...</p>
+          mode === "posts" ? (
+            <PostListSkeleton />
+          ) : (
+            <p className="p-4 text-sm text-black/50 dark:text-white/50">読み込み中...</p>
+          )
         ) : searched && results.length === 0 ? (
           <p className="p-4 text-sm text-black/50 dark:text-white/50">
             該当する{mode === "posts" ? "投稿" : "ユーザー"}が見つかりませんでした。

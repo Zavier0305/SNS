@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/lib/toast-context";
+import { useConfirm } from "@/lib/confirm-context";
 import { fetchPostsByAuthor, toggleBlock, toggleMute } from "@/lib/posts-store";
 import { fetchBlockedProfiles, fetchMutedProfiles } from "@/lib/moderation-lists-store";
 import { fetchNotificationPrefs } from "@/lib/profiles-store";
@@ -16,6 +17,7 @@ export default function SettingsPage() {
   const { profile, checked, updateNotificationPrefs, deleteAccount } = useAuth();
   const router = useRouter();
   const { showToast } = useToast();
+  const confirm = useConfirm();
   const [muted, setMuted] = useState<Profile[]>([]);
   const [blocked, setBlocked] = useState<Profile[]>([]);
   const [prefs, setPrefs] = useState<NotificationPrefs | null>(null);
@@ -149,10 +151,24 @@ export default function SettingsPage() {
 
   async function handleDeleteAccount() {
     if (deletingAccount) return;
-    if (!confirm("アカウントを削除しますか？投稿・コメント・フォローなど全てのデータが失われ、元に戻せません。")) {
+    if (
+      !(await confirm({
+        message:
+          "アカウントを削除しますか？投稿・コメント・フォローなど全てのデータが失われ、元に戻せません。",
+        confirmLabel: "削除する",
+        danger: true,
+      }))
+    ) {
       return;
     }
-    if (!confirm("本当によろしいですか？この操作は取り消せません。")) return;
+    if (
+      !(await confirm({
+        message: "本当によろしいですか？この操作は取り消せません。",
+        confirmLabel: "完全に削除する",
+        danger: true,
+      }))
+    )
+      return;
     setDeletingAccount(true);
     try {
       await deleteAccount();

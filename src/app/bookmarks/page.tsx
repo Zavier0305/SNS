@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth-context";
 import { fetchBookmarkedPosts } from "@/lib/bookmarks-store";
 import { useFollowingIds } from "@/lib/posts-store";
 import { PostCard } from "@/components/PostCard";
+import { PostListSkeleton } from "@/components/PostCardSkeleton";
 import type { Post } from "@/lib/types";
 
 export default function BookmarksPage() {
@@ -57,7 +58,7 @@ export default function BookmarksPage() {
           </div>
         )}
         {loading ? (
-          <p className="p-4 text-sm text-black/50 dark:text-white/50">読み込み中...</p>
+          <PostListSkeleton />
         ) : posts.length === 0 ? (
           <p className="p-4 text-sm text-black/50 dark:text-white/50">
             ブックマークした投稿はまだありません。
