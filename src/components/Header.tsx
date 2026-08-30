@@ -20,6 +20,9 @@ export function Header() {
       </Link>
       {profile && (
         <div className="flex items-center gap-3 text-sm">
+          <Link href="/servers" className="hover:underline text-black/60 dark:text-white/60">
+            サーバー
+          </Link>
           <Link href="/profile" className="hover:underline">
             {profile.displayName}
           </Link>

@@ -44,6 +44,8 @@ function toPost(
       ? (row.poll_options as string[])
       : null,
     myPollVote,
+    channelId: row.channel_id,
+    isPinned: row.is_pinned ?? false,
   };
 }
 
@@ -113,6 +115,7 @@ async function fetchPosts(
     .from("sns_feed")
     .select("*")
     .eq("is_hidden", false)
+    .is("channel_id", null)
     .order("created_at", { ascending: false })
     .limit(FEED_PAGE_SIZE);
 
@@ -209,6 +212,21 @@ export async function fetchPostsByIds(
   return enrichAndSort(data, viewerId);
 }
 
+export async function fetchPostsByChannel(
+  channelId: string,
+  viewerId: string | null,
+): Promise<Post[]> {
+  const { data, error } = await supabase
+    .from("sns_feed")
+    .select("*")
+    .eq("channel_id", channelId)
+    .order("created_at", { ascending: false })
+    .limit(FEED_PAGE_SIZE);
+  if (error || !data) return [];
+  const posts = await enrichAndSort(data, viewerId);
+  return posts.sort((a, b) => Number(b.isPinned) - Number(a.isPinned));
+}
+
 export async function deletePost(postId: string, authorId: string) {
   const { error } = await supabase
     .from("sns_posts")
@@ -242,7 +260,11 @@ export async function addPost(
   authorId: string,
   content: string,
   imageFile: File | null,
-  options?: { quotedPostId?: string | null; pollOptions?: string[] | null },
+  options?: {
+    quotedPostId?: string | null;
+    pollOptions?: string[] | null;
+    channelId?: string | null;
+  },
 ) {
   let imageUrl: string | null = null;
 
@@ -266,6 +288,7 @@ export async function addPost(
     image_url: imageUrl,
     quoted_post_id: options?.quotedPostId ?? null,
     poll_options: options?.pollOptions ?? null,
+    channel_id: options?.channelId ?? null,
   });
   if (error) throw error;
 }

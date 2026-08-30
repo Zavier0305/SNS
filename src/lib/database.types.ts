@@ -19,21 +19,15 @@ export type Database = {
         Relationships: []
       }
       sns_blocks: {
-        Row: {
-          blocked_user_id: string
-          created_at: string
-          user_id: string
-        }
-        Insert: {
-          blocked_user_id: string
-          created_at?: string
-          user_id: string
-        }
-        Update: {
-          blocked_user_id?: string
-          created_at?: string
-          user_id?: string
-        }
+        Row: { blocked_user_id: string; created_at: string; user_id: string }
+        Insert: { blocked_user_id: string; created_at?: string; user_id: string }
+        Update: { blocked_user_id?: string; created_at?: string; user_id?: string }
+        Relationships: []
+      }
+      sns_channels: {
+        Row: { created_at: string; id: string; name: string; server_id: string }
+        Insert: { created_at?: string; id?: string; name: string; server_id: string }
+        Update: { created_at?: string; id?: string; name?: string; server_id?: string }
         Relationships: []
       }
       sns_comments: {
@@ -76,57 +70,21 @@ export type Database = {
         ]
       }
       sns_follows: {
-        Row: {
-          created_at: string
-          followee_id: string
-          follower_id: string
-        }
-        Insert: {
-          created_at?: string
-          followee_id: string
-          follower_id: string
-        }
-        Update: {
-          created_at?: string
-          followee_id?: string
-          follower_id?: string
-        }
+        Row: { created_at: string; followee_id: string; follower_id: string }
+        Insert: { created_at?: string; followee_id: string; follower_id: string }
+        Update: { created_at?: string; followee_id?: string; follower_id?: string }
         Relationships: []
       }
       sns_likes: {
-        Row: {
-          created_at: string
-          post_id: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          post_id: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          post_id?: string
-          user_id?: string
-        }
+        Row: { created_at: string; post_id: string; user_id: string }
+        Insert: { created_at?: string; post_id: string; user_id: string }
+        Update: { created_at?: string; post_id?: string; user_id?: string }
         Relationships: []
       }
       sns_mutes: {
-        Row: {
-          created_at: string
-          muted_user_id: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          muted_user_id: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          muted_user_id?: string
-          user_id?: string
-        }
+        Row: { created_at: string; muted_user_id: string; user_id: string }
+        Insert: { created_at?: string; muted_user_id: string; user_id: string }
+        Update: { created_at?: string; muted_user_id?: string; user_id?: string }
         Relationships: []
       }
       sns_poll_votes: {
@@ -159,36 +117,42 @@ export type Database = {
       sns_posts: {
         Row: {
           author_id: string
+          channel_id: string | null
           content: string
           created_at: string
           expire_at: string
           id: string
           image_url: string | null
           is_hidden: boolean
+          is_pinned: boolean
           is_preserved: boolean
           poll_options: Json | null
           quoted_post_id: string | null
         }
         Insert: {
           author_id: string
+          channel_id?: string | null
           content: string
           created_at?: string
           expire_at?: string
           id?: string
           image_url?: string | null
           is_hidden?: boolean
+          is_pinned?: boolean
           is_preserved?: boolean
           poll_options?: Json | null
           quoted_post_id?: string | null
         }
         Update: {
           author_id?: string
+          channel_id?: string | null
           content?: string
           created_at?: string
           expire_at?: string
           id?: string
           image_url?: string | null
           is_hidden?: boolean
+          is_pinned?: boolean
           is_preserved?: boolean
           poll_options?: Json | null
           quoted_post_id?: string | null
@@ -196,24 +160,9 @@ export type Database = {
         Relationships: []
       }
       sns_profiles: {
-        Row: {
-          created_at: string
-          display_name: string
-          handle: string
-          id: string
-        }
-        Insert: {
-          created_at?: string
-          display_name?: string
-          handle: string
-          id: string
-        }
-        Update: {
-          created_at?: string
-          display_name?: string
-          handle?: string
-          id?: string
-        }
+        Row: { created_at: string; display_name: string; handle: string; id: string }
+        Insert: { created_at?: string; display_name?: string; handle: string; id: string }
+        Update: { created_at?: string; display_name?: string; handle?: string; id?: string }
         Relationships: []
       }
       sns_reports: {
@@ -243,6 +192,61 @@ export type Database = {
         }
         Relationships: []
       }
+      sns_server_join_requests: {
+        Row: { created_at: string; server_id: string; user_id: string }
+        Insert: { created_at?: string; server_id: string; user_id: string }
+        Update: { created_at?: string; server_id?: string; user_id?: string }
+        Relationships: [
+          {
+            foreignKeyName: "sns_server_join_requests_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "sns_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sns_server_members: {
+        Row: { joined_at: string; role: string; server_id: string; user_id: string }
+        Insert: { joined_at?: string; role?: string; server_id: string; user_id: string }
+        Update: { joined_at?: string; role?: string; server_id?: string; user_id?: string }
+        Relationships: [
+          {
+            foreignKeyName: "sns_server_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "sns_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sns_servers: {
+        Row: {
+          created_at: string
+          id: string
+          is_public: boolean
+          name: string
+          owner_id: string
+          topic: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_public?: boolean
+          name: string
+          owner_id: string
+          topic?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_public?: boolean
+          name?: string
+          owner_id?: string
+          topic?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       sns_feed: {
@@ -250,6 +254,7 @@ export type Database = {
           author_display_name: string | null
           author_handle: string | null
           author_id: string | null
+          channel_id: string | null
           comment_count: number | null
           content: string | null
           created_at: string | null
@@ -257,6 +262,7 @@ export type Database = {
           id: string | null
           image_url: string | null
           is_hidden: boolean | null
+          is_pinned: boolean | null
           is_preserved: boolean | null
           like_count: number | null
           poll_options: Json | null
@@ -276,12 +282,30 @@ export type Database = {
         ]
       }
       sns_trending_tags: {
-        Row: { tag: string | null; post_count: number | null }
+        Row: { post_count: number | null; tag: string | null }
         Relationships: []
       }
     }
     Functions: {
       sns_apply_decay: { Args: never; Returns: undefined }
+      sns_approve_join_request: {
+        Args: { p_server_id: string; p_user_id: string }
+        Returns: undefined
+      }
+      sns_join_server: { Args: { p_server_id: string }; Returns: undefined }
+      sns_kick_member: {
+        Args: { p_server_id: string; p_user_id: string }
+        Returns: undefined
+      }
+      sns_leave_server: { Args: { p_server_id: string }; Returns: undefined }
+      sns_reject_join_request: {
+        Args: { p_server_id: string; p_user_id: string }
+        Returns: undefined
+      }
+      sns_set_member_role: {
+        Args: { p_role: string; p_server_id: string; p_user_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

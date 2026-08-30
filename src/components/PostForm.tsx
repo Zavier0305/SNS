@@ -12,11 +12,13 @@ export function PostForm({
   onPosted,
   quotedPost,
   onCancelQuote,
+  channelId,
 }: {
   authorId: string;
   onPosted?: () => void;
   quotedPost?: Post | null;
   onCancelQuote?: () => void;
+  channelId?: string | null;
 }) {
   const [content, setContent] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -67,6 +69,7 @@ export function PostForm({
       await addPost(authorId, trimmed, imageFile, {
         quotedPostId: quotedPost?.id ?? null,
         pollOptions: pollOptions ? validPollOptions : null,
+        channelId: channelId ?? null,
       });
       setContent("");
       clearImage();

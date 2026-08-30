@@ -27,6 +27,8 @@ export type Post = {
   quotedAuthorDisplayName: string | null;
   pollOptions: string[] | null;
   myPollVote: number | null;
+  channelId: string | null;
+  isPinned: boolean;
 };
 
 export type Comment = {

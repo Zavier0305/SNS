@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Fragment, useState } from "react";
 import type { Post } from "@/lib/types";
 import { deletePost, toggleFollow, toggleLike } from "@/lib/posts-store";
+import { togglePin } from "@/lib/servers-store";
 import { useToast } from "@/lib/toast-context";
 import { CommentSection } from "@/components/CommentSection";
 import { PollWidget } from "@/components/PollWidget";
@@ -50,6 +51,8 @@ export function PostCard({
   onFollowChange,
   onDeleted,
   onQuote,
+  canModerate,
+  onPinChange,
 }: {
   post: Post;
   currentUserId: string | null;
@@ -57,6 +60,8 @@ export function PostCard({
   onFollowChange?: () => void;
   onDeleted?: () => void;
   onQuote?: (post: Post) => void;
+  canModerate?: boolean;
+  onPinChange?: () => void;
 }) {
   const [liked, setLiked] = useState(post.likedByMe);
   const [likeCount, setLikeCount] = useState(post.likeCount);
@@ -68,6 +73,15 @@ export function PostCard({
   const { showToast } = useToast();
   const isOwnPost = currentUserId === post.authorId;
   const days = remainingDays(post.expireAt);
+
+  async function handlePin() {
+    try {
+      await togglePin(post.id, post.isPinned);
+      onPinChange?.();
+    } catch {
+      showToast("ピン留めの変更に失敗しました", "error");
+    }
+  }
 
   async function handleLike() {
     if (!currentUserId) return;
@@ -128,6 +142,18 @@ export function PostCard({
           </span>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          {canModerate && (
+            <button
+              onClick={handlePin}
+              className={`text-xs rounded-full border px-2 py-0.5 ${
+                post.isPinned
+                  ? "border-amber-400 text-amber-600 dark:text-amber-300"
+                  : "border-black/20 dark:border-white/20"
+              }`}
+            >
+              📌
+            </button>
+          )}
           {!isOwnPost && currentUserId && (
             <button
               onClick={handleFollow}
@@ -158,6 +184,11 @@ export function PostCard({
       </div>
 
       <div className="mt-1 flex gap-1.5">
+        {post.isPinned && (
+          <span className="text-[10px] rounded-full bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-300 px-2 py-0.5">
+            📌 ピン留め中
+          </span>
+        )}
         {post.isPreserved ? (
           <span className="text-[10px] rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 px-2 py-0.5">
             🏆 殿堂入り
