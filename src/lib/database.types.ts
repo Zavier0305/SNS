@@ -24,6 +24,12 @@ export type Database = {
         Update: { blocked_user_id?: string; created_at?: string; user_id?: string }
         Relationships: []
       }
+      sns_bookmarks: {
+        Row: { created_at: string; post_id: string; user_id: string }
+        Insert: { created_at?: string; post_id: string; user_id: string }
+        Update: { created_at?: string; post_id?: string; user_id?: string }
+        Relationships: []
+      }
       sns_channels: {
         Row: { created_at: string; id: string; name: string; server_id: string }
         Insert: { created_at?: string; id?: string; name: string; server_id: string }

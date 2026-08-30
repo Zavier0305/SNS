@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { Fragment, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import type { Post } from "@/lib/types";
 import { deletePost, toggleFollow, toggleLike, updatePost } from "@/lib/posts-store";
 import { togglePin } from "@/lib/servers-store";
+import { toggleBookmark, useIsBookmarked } from "@/lib/bookmarks-store";
 import { useToast } from "@/lib/toast-context";
+import { supabase } from "@/lib/supabase/client";
 import { CommentSection } from "@/components/CommentSection";
 import { PollWidget } from "@/components/PollWidget";
 import { PostMenu } from "@/components/PostMenu";
@@ -76,8 +78,49 @@ export function PostCard({
   const [content, setContentState] = useState(post.content);
   const [saving, setSaving] = useState(false);
   const { showToast } = useToast();
+  const { bookmarked, refresh: refreshBookmark } = useIsBookmarked(post.id, currentUserId);
   const isOwnPost = currentUserId === post.authorId;
   const days = remainingDays(post.expireAt);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel(`sns_post_counts_${post.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "sns_likes", filter: `post_id=eq.${post.id}` },
+        (payload) => {
+          if (payload.eventType === "INSERT" && payload.new.user_id !== currentUserId) {
+            setLikeCount((c) => c + 1);
+          } else if (payload.eventType === "DELETE" && payload.old.user_id !== currentUserId) {
+            setLikeCount((c) => Math.max(0, c - 1));
+          }
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "sns_comments", filter: `post_id=eq.${post.id}` },
+        (payload) => {
+          if (payload.new.author_id !== currentUserId) {
+            setCommentCount((c) => c + 1);
+          }
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [post.id]);
+
+  async function handleBookmark() {
+    if (!currentUserId) return;
+    try {
+      await toggleBookmark(post.id, currentUserId, bookmarked);
+      refreshBookmark();
+    } catch {
+      showToast("操作に失敗しました", "error");
+    }
+  }
 
   async function handleSaveEdit() {
     if (!currentUserId || !editContent.trim() || saving) return;
@@ -157,21 +200,26 @@ export function PostCard({
           <span className="text-xs text-black/40 dark:text-white/40 truncate">
             @{post.authorHandle}
           </span>
-          <span className="text-xs text-black/50 dark:text-white/50 shrink-0">
+          <Link
+            href={`/post/${post.id}`}
+            className="text-xs text-black/50 dark:text-white/50 shrink-0 hover:underline"
+          >
             {formatTime(post.createdAt)}
-          </span>
+          </Link>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {canModerate && (
             <button
               onClick={handlePin}
+              aria-label={post.isPinned ? "ピン留めを解除" : "ピン留めする"}
+              aria-pressed={post.isPinned}
               className={`text-xs rounded-full border px-2 py-0.5 ${
                 post.isPinned
                   ? "border-amber-400 text-amber-600 dark:text-amber-300"
                   : "border-black/20 dark:border-white/20"
               }`}
             >
-              📌
+              <span aria-hidden="true">📌</span>
             </button>
           )}
           {!isOwnPost && currentUserId && (
@@ -276,7 +324,7 @@ export function PostCard({
             <img
               key={i}
               src={url}
-              alt=""
+              alt={`${post.authorDisplayName}の投稿画像 ${i + 1}`}
               className="rounded-lg max-h-60 w-full object-cover"
             />
           ))}
@@ -308,27 +356,44 @@ export function PostCard({
         <button
           onClick={handleLike}
           disabled={!currentUserId}
+          aria-label={liked ? "いいねを取り消す" : "いいねする"}
+          aria-pressed={liked}
           className={`flex items-center gap-1 text-xs ${
             liked ? "text-pink-500" : "text-black/50 dark:text-white/50"
           }`}
         >
-          <span>{liked ? "♥" : "♡"}</span>
+          <span aria-hidden="true">{liked ? "♥" : "♡"}</span>
           <span>{likeCount}</span>
         </button>
         <button
           onClick={() => setShowComments((v) => !v)}
+          aria-label="コメントを表示"
+          aria-expanded={showComments}
           className="flex items-center gap-1 text-xs text-black/50 dark:text-white/50"
         >
-          <span>💬</span>
+          <span aria-hidden="true">💬</span>
           <span>{commentCount}</span>
         </button>
         {onQuote && currentUserId && (
           <button
             onClick={() => onQuote(post)}
+            aria-label="引用して投稿"
             className="flex items-center gap-1 text-xs text-black/50 dark:text-white/50"
           >
-            <span>❝</span>
+            <span aria-hidden="true">❝</span>
             <span>引用</span>
+          </button>
+        )}
+        {currentUserId && (
+          <button
+            onClick={handleBookmark}
+            aria-label={bookmarked ? "ブックマークを解除" : "ブックマークする"}
+            aria-pressed={bookmarked}
+            className={`flex items-center gap-1 text-xs ${
+              bookmarked ? "text-blue-500" : "text-black/50 dark:text-white/50"
+            }`}
+          >
+            <span aria-hidden="true">{bookmarked ? "🔖" : "📑"}</span>
           </button>
         )}
       </div>

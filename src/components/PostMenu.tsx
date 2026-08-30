@@ -57,6 +57,8 @@ export function PostMenu({
     <div className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
+        aria-label="投稿メニュー"
+        aria-expanded={open}
         className="text-xs text-black/40 dark:text-white/40 px-1"
       >
         ⋯

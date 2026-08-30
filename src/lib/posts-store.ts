@@ -5,7 +5,8 @@ import { POST_IMAGE_BUCKET, supabase } from "@/lib/supabase/client";
 import type { Database } from "@/lib/database.types";
 import type { FeedKind, Post } from "@/lib/types";
 
-const FEED_PAGE_SIZE = 100;
+const FEED_PAGE_SIZE = 20;
+const LIST_PAGE_SIZE = 100;
 export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 type FeedRow = Database["public"]["Views"]["sns_feed"]["Row"];
@@ -110,6 +111,7 @@ async function fetchMyPollVotes(
 async function fetchPosts(
   feed: FeedKind,
   userId: string | null,
+  limit: number = FEED_PAGE_SIZE,
 ): Promise<Post[]> {
   let query = supabase
     .from("sns_feed")
@@ -117,7 +119,7 @@ async function fetchPosts(
     .eq("is_hidden", false)
     .is("channel_id", null)
     .order("created_at", { ascending: false })
-    .limit(FEED_PAGE_SIZE);
+    .limit(limit);
 
   if (feed === "following") {
     if (!userId) return [];
@@ -193,7 +195,7 @@ export async function fetchPostsByAuthor(
     .select("*")
     .eq("author_id", authorId)
     .order("created_at", { ascending: false })
-    .limit(FEED_PAGE_SIZE);
+    .limit(LIST_PAGE_SIZE);
   if (error || !data) return [];
   return enrichAndSort(data, viewerId);
 }
@@ -207,7 +209,7 @@ export async function fetchPostsByIds(
     .from("sns_feed")
     .select("*")
     .in("id", postIds)
-    .limit(FEED_PAGE_SIZE);
+    .limit(LIST_PAGE_SIZE);
   if (error || !data) return [];
   return enrichAndSort(data, viewerId);
 }
@@ -221,7 +223,7 @@ export async function fetchPostsByChannel(
     .select("*")
     .eq("channel_id", channelId)
     .order("created_at", { ascending: false })
-    .limit(FEED_PAGE_SIZE);
+    .limit(LIST_PAGE_SIZE);
   if (error || !data) return [];
   const posts = await enrichAndSort(data, viewerId);
   return posts.sort((a, b) => Number(b.isPinned) - Number(a.isPinned));
@@ -239,15 +241,35 @@ export async function deletePost(postId: string, authorId: string) {
 export function usePosts(feed: FeedKind, userId: string | null) {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [hasNew, setHasNew] = useState(false);
+  const [limit, setLimit] = useState(FEED_PAGE_SIZE);
+  const [hasMore, setHasMore] = useState(true);
 
   const refresh = useCallback(() => {
     setLoading(true);
     setHasNew(false);
-    fetchPosts(feed, userId)
-      .then(setPosts)
+    setLimit(FEED_PAGE_SIZE);
+    fetchPosts(feed, userId, FEED_PAGE_SIZE)
+      .then((result) => {
+        setPosts(result);
+        setHasMore(result.length >= FEED_PAGE_SIZE);
+      })
       .finally(() => setLoading(false));
   }, [feed, userId]);
+
+  const loadMore = useCallback(() => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    const nextLimit = limit + FEED_PAGE_SIZE;
+    fetchPosts(feed, userId, nextLimit)
+      .then((result) => {
+        setPosts(result);
+        setLimit(nextLimit);
+        setHasMore(result.length >= nextLimit);
+      })
+      .finally(() => setLoadingMore(false));
+  }, [feed, userId, limit, loadingMore, hasMore]);
 
   useEffect(() => {
     // Kicks off the initial fetch on mount / when feed or user changes.
@@ -272,7 +294,7 @@ export function usePosts(feed: FeedKind, userId: string | null) {
     };
   }, [feed]);
 
-  return { posts, loading, refresh, hasNew };
+  return { posts, loading, refresh, hasNew, loadMore, loadingMore, hasMore };
 }
 
 export const MAX_IMAGES_PER_POST = 4;

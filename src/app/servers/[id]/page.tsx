@@ -8,6 +8,8 @@ import { fetchPostsByChannel } from "@/lib/posts-store";
 import {
   approveJoinRequest,
   createChannel,
+  deleteChannel,
+  deleteServer,
   fetchChannels,
   fetchJoinRequests,
   fetchMembers,
@@ -147,6 +149,32 @@ export default function ServerPage() {
     }
   }
 
+  async function handleDeleteServer() {
+    if (!confirm("このサーバーを削除しますか？この操作は取り消せません。")) return;
+    try {
+      await deleteServer(params.id);
+      showToast("サーバーを削除しました");
+      router.push("/servers");
+    } catch {
+      showToast("削除に失敗しました", "error");
+    }
+  }
+
+  async function handleDeleteChannel(channelId: string) {
+    if (channels.length <= 1) {
+      showToast("最後のチャンネルは削除できません", "error");
+      return;
+    }
+    if (!confirm("このチャンネルを削除しますか？")) return;
+    try {
+      await deleteChannel(channelId);
+      setActiveChannelId(null);
+      refreshServer();
+    } catch {
+      showToast("削除に失敗しました", "error");
+    }
+  }
+
   if (!checked || !profile) return null;
 
   return (
@@ -238,22 +266,40 @@ export default function ServerPage() {
                     </div>
                   ))}
                 </div>
+                {server.myRole === "owner" && (
+                  <button
+                    onClick={handleDeleteServer}
+                    className="text-xs text-red-500 hover:underline self-start"
+                  >
+                    サーバーを削除
+                  </button>
+                )}
               </div>
             )}
 
             <div className="flex overflow-x-auto border-b border-black/10 dark:border-white/10">
               {channels.map((c) => (
-                <button
-                  key={c.id}
-                  onClick={() => setActiveChannelId(c.id)}
-                  className={`shrink-0 px-3 py-2 text-sm ${
-                    activeChannelId === c.id
-                      ? "border-b-2 border-foreground font-medium"
-                      : "text-black/50 dark:text-white/50"
-                  }`}
-                >
-                  #{c.name}
-                </button>
+                <div key={c.id} className="flex items-center shrink-0">
+                  <button
+                    onClick={() => setActiveChannelId(c.id)}
+                    className={`px-3 py-2 text-sm ${
+                      activeChannelId === c.id
+                        ? "border-b-2 border-foreground font-medium"
+                        : "text-black/50 dark:text-white/50"
+                    }`}
+                  >
+                    #{c.name}
+                  </button>
+                  {isModerator && (
+                    <button
+                      onClick={() => handleDeleteChannel(c.id)}
+                      aria-label={`#${c.name}を削除`}
+                      className="text-[10px] text-black/30 dark:text-white/30 hover:text-red-500 pr-1"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
               ))}
               {isModerator && (
                 <form onSubmit={handleCreateChannel} className="flex items-center px-2">

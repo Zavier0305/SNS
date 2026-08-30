@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
@@ -17,13 +17,30 @@ export default function Home() {
   const [feed, setFeed] = useState<FeedKind>("recommended");
   const [quotedPost, setQuotedPost] = useState<Post | null>(null);
   const userId = profile?.id ?? null;
-  const { posts, loading, refresh, hasNew } = usePosts(feed, userId);
+  const { posts, loading, refresh, hasNew, loadMore, loadingMore, hasMore } = usePosts(
+    feed,
+    userId,
+  );
   const { followingIds, refresh: refreshFollowing } = useFollowingIds(userId);
   const { tags } = useTrendingTags();
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (checked && !profile) router.push("/login");
   }, [checked, profile, router]);
+
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) loadMore();
+      },
+      { rootMargin: "200px" },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [loadMore]);
 
   if (!checked || !profile) return null;
 
@@ -113,6 +130,17 @@ export default function Home() {
               onQuote={setQuotedPost}
             />
           ))
+        )}
+        <div ref={sentinelRef} />
+        {loadingMore && (
+          <p className="p-4 text-center text-xs text-black/40 dark:text-white/40">
+            読み込み中...
+          </p>
+        )}
+        {!loading && !hasMore && posts.length > 0 && (
+          <p className="p-4 text-center text-xs text-black/40 dark:text-white/40">
+            これ以上の投稿はありません
+          </p>
         )}
       </main>
     </>

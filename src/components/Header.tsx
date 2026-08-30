@@ -27,13 +27,27 @@ export function Header() {
           <Link href="/servers" className="hover:underline text-black/60 dark:text-white/60">
             サーバー
           </Link>
-          <Link href="/notifications" className="relative hover:underline text-black/60 dark:text-white/60">
-            🔔
+          <Link
+            href="/bookmarks"
+            aria-label="ブックマーク"
+            className="hover:underline text-black/60 dark:text-white/60"
+          >
+            🔖
+          </Link>
+          <Link
+            href="/notifications"
+            aria-label={count > 0 ? `通知（未読${count}件）` : "通知"}
+            className="relative hover:underline text-black/60 dark:text-white/60"
+          >
+            <span aria-hidden="true">🔔</span>
             {count > 0 && (
               <span className="absolute -top-1.5 -right-2 bg-red-500 text-white text-[9px] rounded-full min-w-[14px] h-[14px] flex items-center justify-center px-0.5">
                 {count > 9 ? "9+" : count}
               </span>
             )}
+          </Link>
+          <Link href="/settings" aria-label="設定" className="hover:underline text-black/60 dark:text-white/60">
+            <span aria-hidden="true">⚙️</span>
           </Link>
           <Link href="/profile" className="hover:underline">
             {profile.displayName}

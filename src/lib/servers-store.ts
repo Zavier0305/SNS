@@ -143,6 +143,16 @@ export async function createChannel(serverId: string, name: string) {
   if (error) throw error;
 }
 
+export async function deleteChannel(channelId: string) {
+  const { error } = await supabase.from("sns_channels").delete().eq("id", channelId);
+  if (error) throw error;
+}
+
+export async function deleteServer(serverId: string) {
+  const { error } = await supabase.from("sns_servers").delete().eq("id", serverId);
+  if (error) throw error;
+}
+
 export async function fetchMembers(serverId: string): Promise<ServerMember[]> {
   const { data } = await supabase
     .from("sns_server_members")
