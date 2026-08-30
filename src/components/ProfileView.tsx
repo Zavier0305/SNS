@@ -15,7 +15,15 @@ import {
 import { fetchFollowCounts } from "@/lib/follows-store";
 import { isBlockedBy } from "@/lib/moderation-lists-store";
 import { uploadAvatarImage, uploadCoverImage } from "@/lib/profiles-store";
-import { battleRecord, createBattle, fetchMyBattles, type Battle } from "@/lib/battles-store";
+import {
+  battleRecord,
+  createBattle,
+  fetchMyBattles,
+  fetchMyRating,
+  type Battle,
+  type BattleRating,
+} from "@/lib/battles-store";
+import { tierForRating } from "@/lib/battle-rank";
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/lib/toast-context";
 import { useConfirm } from "@/lib/confirm-context";
@@ -72,6 +80,7 @@ export function ProfileView({
   const [myBattles, setMyBattles] = useState<Battle[]>([]);
   const [challenging, setChallenging] = useState(false);
   const [battleResult, setBattleResult] = useState<Battle | null>(null);
+  const [battleRating, setBattleRating] = useState<BattleRating | null>(null);
 
   const refresh = useMemo(
     () => () => {
@@ -109,6 +118,10 @@ export function ProfileView({
   useEffect(() => {
     refreshBattles();
   }, [refreshBattles]);
+
+  useEffect(() => {
+    fetchMyRating(profile.id).then(setBattleRating);
+  }, [profile.id]);
 
   const record = useMemo(
     () => battleRecord(myBattles, profile.id),
@@ -457,6 +470,16 @@ export function ProfileView({
           {(record.wins > 0 || record.losses > 0 || record.draws > 0) && (
             <span>
               ⚔️ {record.wins}勝{record.losses}敗{record.draws > 0 ? `${record.draws}分` : ""}
+              {battleRating && (
+                <Link
+                  href="/battle"
+                  className="ml-1.5 hover:underline"
+                  title={`レート ${battleRating.rating}`}
+                >
+                  {tierForRating(battleRating.rating).emoji}
+                  {tierForRating(battleRating.rating).name}
+                </Link>
+              )}
             </span>
           )}
         </div>

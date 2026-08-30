@@ -88,6 +88,41 @@ export type Database = {
           },
         ]
       }
+      sns_battle_ratings: {
+        Row: {
+          draws: number
+          losses: number
+          rating: number
+          updated_at: string
+          user_id: string
+          wins: number
+        }
+        Insert: {
+          draws?: number
+          losses?: number
+          rating?: number
+          updated_at?: string
+          user_id: string
+          wins?: number
+        }
+        Update: {
+          draws?: number
+          losses?: number
+          rating?: number
+          updated_at?: string
+          user_id?: string
+          wins?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sns_battle_ratings_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "sns_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sns_blocks: {
         Row: { blocked_user_id: string; created_at: string; user_id: string }
         Insert: { blocked_user_id: string; created_at?: string; user_id: string }
@@ -797,6 +832,16 @@ export type Database = {
       sns_approve_join_request: {
         Args: { p_server_id: string; p_user_id: string }
         Returns: undefined
+      }
+      sns_battle_period_ranking: {
+        Args: { p_period?: string }
+        Returns: {
+          battle_count: number
+          draws: number
+          losses: number
+          user_id: string
+          wins: number
+        }[]
       }
       sns_create_battle: {
         Args: { p_opponent_id: string }
