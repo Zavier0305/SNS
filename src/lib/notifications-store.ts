@@ -1,17 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
-import { notifyBrowser } from "@/lib/push-notifications";
 
 export type NotificationType = "like" | "comment" | "follow" | "reaction";
-
-const NOTIFICATION_LABELS: Record<NotificationType, string> = {
-  like: "いいねされました",
-  comment: "コメントされました",
-  follow: "フォローされました",
-  reaction: "リアクションされました",
-};
 
 export type Notification = {
   id: string;
@@ -59,54 +50,4 @@ export async function markNotificationRead(notificationId: string) {
     .update({ read_at: new Date().toISOString() })
     .eq("id", notificationId)
     .is("read_at", null);
-}
-
-export function useUnreadNotificationCount(userId: string | null) {
-  const [count, setCount] = useState(0);
-
-  const refresh = useCallback(() => {
-    if (!userId) {
-      setCount(0);
-      return;
-    }
-    supabase
-      .from("sns_notifications")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId)
-      .is("read_at", null)
-      .then(({ count: c }) => setCount(c ?? 0));
-  }, [userId]);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    refresh();
-    if (!userId) return;
-    // supabase-js dedupes channels by topic, so a second hook instance for the
-    // same user (e.g. this hook mounted in both the Header badge and a page)
-    // would otherwise try to bind postgres_changes on an already-subscribed
-    // channel, which throws. Skip creating a redundant subscription if one is
-    // already active; the existing instance's refresh() keeps the count fresh.
-    const topic = `realtime:sns_notifications_${userId}`;
-    const alreadyActive = supabase
-      .getChannels()
-      .some((c) => c.topic === topic && c.state !== "closed");
-    if (alreadyActive) return;
-    const channel = supabase
-      .channel(`sns_notifications_${userId}`)
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "sns_notifications", filter: `user_id=eq.${userId}` },
-        (payload) => {
-          refresh();
-          const type = payload.new.type as NotificationType;
-          notifyBrowser("SNS", NOTIFICATION_LABELS[type] ?? "新しい通知があります");
-        },
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [userId, refresh]);
-
-  return { count, refresh };
 }

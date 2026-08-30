@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useFollowingIds } from "@/lib/posts-store";
-import { searchPosts } from "@/lib/discovery-store";
+import { searchPosts, useTrendingTags } from "@/lib/discovery-store";
 import { searchProfiles } from "@/lib/profiles-store";
 import {
   addSearchHistory,
@@ -29,7 +29,10 @@ export default function SearchPage() {
   const [searched, setSearched] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
   const [followingOnly, setFollowingOnly] = useState(false);
+  const [highlightKeywords, setHighlightKeywords] = useState<string[]>([]);
+  const [showTagSuggestions, setShowTagSuggestions] = useState(false);
   const { followingIds } = useFollowingIds(profile?.id ?? null);
+  const { tags: trendingTags } = useTrendingTags();
 
   const visiblePosts =
     mode === "posts" && followingOnly
@@ -59,6 +62,7 @@ export default function SearchPage() {
     try {
       if (mode === "posts") {
         setPosts(await searchPosts(q, profile?.id ?? null));
+        setHighlightKeywords(trimmed.split(/\s+/).filter(Boolean).slice(0, 5));
       } else {
         setUsers(await searchProfiles(q));
       }
@@ -70,13 +74,29 @@ export default function SearchPage() {
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    setShowTagSuggestions(false);
     await runSearch(query);
   }
 
   function handleHistoryClick(q: string) {
     setQuery(q);
+    setShowTagSuggestions(false);
     runSearch(q);
   }
+
+  function handleTagSuggestionClick(tag: string) {
+    const q = `#${tag}`;
+    setQuery(q);
+    setShowTagSuggestions(false);
+    runSearch(q);
+  }
+
+  const tagSuggestions =
+    mode === "posts" && query.startsWith("#") && query.length > 1
+      ? trendingTags
+          .filter((t) => t.tag.toLowerCase().startsWith(query.slice(1).toLowerCase()))
+          .slice(0, 6)
+      : [];
 
   function handleRemoveHistory(e: MouseEvent, q: string) {
     e.stopPropagation();
@@ -115,12 +135,17 @@ export default function SearchPage() {
         </div>
         <form
           onSubmit={handleSubmit}
-          className="p-4 flex gap-2 border-b border-black/10 dark:border-white/10"
+          className="relative p-4 flex gap-2 border-b border-black/10 dark:border-white/10"
         >
           <input
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={mode === "posts" ? "キーワードで検索" : "ユーザー名で検索"}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setShowTagSuggestions(true);
+            }}
+            onFocus={() => setShowTagSuggestions(true)}
+            onBlur={() => setTimeout(() => setShowTagSuggestions(false), 100)}
+            placeholder={mode === "posts" ? "キーワードで検索（#タグ可）" : "ユーザー名で検索"}
             className="flex-1 rounded-md border border-black/10 dark:border-white/20 bg-transparent px-3 py-2 text-sm outline-none focus:border-black/30 dark:focus:border-white/40"
           />
           <button
@@ -130,6 +155,23 @@ export default function SearchPage() {
           >
             検索
           </button>
+          {showTagSuggestions && tagSuggestions.length > 0 && (
+            <div className="absolute left-4 right-20 top-full z-10 mt-1 rounded-md border border-black/10 dark:border-white/20 bg-background shadow-lg overflow-hidden">
+              {tagSuggestions.map((t) => (
+                <button
+                  key={t.tag}
+                  type="button"
+                  onClick={() => handleTagSuggestionClick(t.tag)}
+                  className="flex w-full items-center justify-between px-3 py-2 text-sm hover:bg-black/5 dark:hover:bg-white/10"
+                >
+                  <span className="text-blue-500">#{t.tag}</span>
+                  <span className="text-xs text-black/40 dark:text-white/40">
+                    {t.count}件
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
         </form>
         {mode === "posts" && (
           <label className="flex items-center gap-1.5 px-4 pb-3 text-xs text-black/60 dark:text-white/60 -mt-1">
@@ -188,6 +230,7 @@ export default function SearchPage() {
               post={post}
               currentUserId={profile.id}
               isFollowing={followingIds.has(post.authorId)}
+              highlightWords={highlightKeywords}
             />
           ))
         ) : (

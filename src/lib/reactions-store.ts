@@ -40,6 +40,23 @@ export function useReactions(postId: string, userId: string | null) {
   return { reactions, refresh };
 }
 
+export type Reactor = { id: string; handle: string; displayName: string; emoji: string };
+
+export async function fetchReactors(postId: string): Promise<Reactor[]> {
+  const { data } = await supabase
+    .from("sns_reactions")
+    .select("user_id, emoji, sns_profiles(handle, display_name)")
+    .eq("post_id", postId)
+    .order("created_at", { ascending: false })
+    .limit(200);
+  return (data ?? []).map((row) => ({
+    id: row.user_id,
+    handle: row.sns_profiles?.handle ?? "",
+    displayName: row.sns_profiles?.display_name ?? "名無しさん",
+    emoji: row.emoji,
+  }));
+}
+
 export async function toggleReaction(
   postId: string,
   userId: string,

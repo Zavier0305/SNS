@@ -10,6 +10,7 @@ import {
   markNotificationRead,
   type Notification,
 } from "@/lib/notifications-store";
+import { useNotificationCount } from "@/lib/notification-count-context";
 
 const LABELS: Record<Notification["type"], string> = {
   like: "があなたの投稿にいいねしました",
@@ -33,6 +34,7 @@ export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | Notification["type"]>("all");
+  const { refresh: refreshUnreadCount } = useNotificationCount();
 
   useEffect(() => {
     if (checked && !profile) router.push("/login");
@@ -50,6 +52,7 @@ export default function NotificationsPage() {
       current.map((n) => (n.id === id ? { ...n, readAt: n.readAt ?? new Date().toISOString() } : n)),
     );
     await markNotificationRead(id);
+    refreshUnreadCount();
   }
 
   async function handleMarkAllRead() {
@@ -58,6 +61,7 @@ export default function NotificationsPage() {
       current.map((n) => ({ ...n, readAt: n.readAt ?? new Date().toISOString() })),
     );
     await markAllNotificationsRead(profile.id);
+    refreshUnreadCount();
   }
 
   if (!checked || !profile) return null;

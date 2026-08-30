@@ -165,6 +165,7 @@ async function run() {
     "/explore",
     "/search",
     "/bookmarks",
+    "/likes",
     "/servers",
     "/servers/s1",
     "/profile",

@@ -70,7 +70,29 @@ function LinkPreviewCard({ url }: { url: string }) {
   );
 }
 
-function renderContent(content: string) {
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function highlightText(text: string, highlightWords: string[]) {
+  if (highlightWords.length === 0) return text;
+  const pattern = new RegExp(`(${highlightWords.map(escapeRegExp).join("|")})`, "gi");
+  const parts = text.split(pattern);
+  return parts.map((part, i) =>
+    highlightWords.some((w) => w.toLowerCase() === part.toLowerCase()) ? (
+      <mark
+        key={i}
+        className="bg-yellow-200 dark:bg-yellow-500/40 text-inherit rounded-sm"
+      >
+        {part}
+      </mark>
+    ) : (
+      <Fragment key={i}>{part}</Fragment>
+    ),
+  );
+}
+
+function renderContent(content: string, highlightWords: string[] = []) {
   const parts = content.split(HASHTAG_PATTERN);
   return parts.map((part, i) =>
     i % 2 === 1 ? (
@@ -82,7 +104,7 @@ function renderContent(content: string) {
         #{part}
       </Link>
     ) : (
-      <Fragment key={i}>{part}</Fragment>
+      <Fragment key={i}>{highlightText(part, highlightWords)}</Fragment>
     ),
   );
 }
@@ -96,6 +118,7 @@ export function PostCard({
   onQuote,
   canModerate,
   onPinChange,
+  highlightWords,
 }: {
   post: Post;
   currentUserId: string | null;
@@ -105,6 +128,7 @@ export function PostCard({
   onQuote?: (post: Post) => void;
   canModerate?: boolean;
   onPinChange?: () => void;
+  highlightWords?: string[];
 }) {
   const [liked, setLiked] = useState(post.likedByMe);
   const [likeCount, setLikeCount] = useState(post.likeCount);
@@ -448,7 +472,7 @@ export function PostCard({
         </div>
       ) : (
         <p className="mt-1 text-sm whitespace-pre-wrap break-words">
-          {renderContent(content)}
+          {renderContent(content, highlightWords)}
         </p>
       )}
       {!editing &&

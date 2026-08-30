@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { useUnreadNotificationCount } from "@/lib/notifications-store";
+import { useNotificationCount } from "@/lib/notification-count-context";
 import { HomeIcon, SearchIcon, ServersIcon, BellIcon, UserIcon } from "@/components/icons";
 
 const ITEMS = [
@@ -17,7 +17,7 @@ const ITEMS = [
 export function BottomNav() {
   const { profile } = useAuth();
   const pathname = usePathname();
-  const { count } = useUnreadNotificationCount(profile?.id ?? null);
+  const { count } = useNotificationCount();
 
   if (!profile) return null;
 

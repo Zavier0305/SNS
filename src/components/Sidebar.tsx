@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { useUnreadNotificationCount } from "@/lib/notifications-store";
+import { useNotificationCount } from "@/lib/notification-count-context";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import {
   HomeIcon,
@@ -31,7 +31,7 @@ export function Sidebar() {
   const { profile, logout } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
-  const { count } = useUnreadNotificationCount(profile?.id ?? null);
+  const { count } = useNotificationCount();
 
   if (!profile) return null;
 

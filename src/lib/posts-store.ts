@@ -218,6 +218,23 @@ export async function fetchPostsByIds(
   return enrichAndSort(data, viewerId);
 }
 
+export async function fetchLikedPostIds(userId: string): Promise<string[]> {
+  const { data } = await supabase
+    .from("sns_likes")
+    .select("post_id")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(LIST_PAGE_SIZE);
+  return (data ?? []).map((row) => row.post_id);
+}
+
+export async function fetchLikedPosts(userId: string): Promise<Post[]> {
+  const ids = await fetchLikedPostIds(userId);
+  const posts = await fetchPostsByIds(ids, userId);
+  const order = new Map(ids.map((id, i) => [id, i]));
+  return posts.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
+}
+
 export async function fetchPostsByChannel(
   channelId: string,
   viewerId: string | null,

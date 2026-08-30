@@ -643,9 +643,9 @@ export type Database = {
         ]
       }
       sns_servers: {
-        Row: { created_at: string; id: string; is_public: boolean; name: string; owner_id: string; topic: string | null }
-        Insert: { created_at?: string; id?: string; is_public?: boolean; name: string; owner_id: string; topic?: string | null }
-        Update: { created_at?: string; id?: string; is_public?: boolean; name?: string; owner_id?: string; topic?: string | null }
+        Row: { created_at: string; id: string; is_public: boolean; name: string; owner_id: string; topic: string | null; welcome_message: string | null }
+        Insert: { created_at?: string; id?: string; is_public?: boolean; name: string; owner_id: string; topic?: string | null; welcome_message?: string | null }
+        Update: { created_at?: string; id?: string; is_public?: boolean; name?: string; owner_id?: string; topic?: string | null; welcome_message?: string | null }
         Relationships: [
           {
             foreignKeyName: "sns_servers_owner_id_fkey"

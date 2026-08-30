@@ -349,6 +349,11 @@ export function ProfileView({
             <span className="font-semibold">{followCounts.followers}</span>{" "}
             <span className="text-black/50 dark:text-white/50">フォロワー</span>
           </Link>
+          {isOwnProfile && (
+            <Link href="/likes" className="text-black/50 dark:text-white/50 hover:underline">
+              いいね一覧
+            </Link>
+          )}
         </div>
 
         {isOwnProfile && (

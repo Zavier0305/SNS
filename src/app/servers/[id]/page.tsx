@@ -22,6 +22,8 @@ import {
   setChannelLocked,
   setMemberRole,
   updateServerTopic,
+  updateServerVisibility,
+  updateServerWelcomeMessage,
   type Channel,
   type JoinRequest,
   type Server,
@@ -55,6 +57,11 @@ export default function ServerPage() {
   const [editingTopic, setEditingTopic] = useState(false);
   const [topicDraft, setTopicDraft] = useState("");
   const [savingTopic, setSavingTopic] = useState(false);
+  const [savingVisibility, setSavingVisibility] = useState(false);
+  const [editingWelcome, setEditingWelcome] = useState(false);
+  const [welcomeDraft, setWelcomeDraft] = useState("");
+  const [savingWelcome, setSavingWelcome] = useState(false);
+  const [welcomeDismissed, setWelcomeDismissed] = useState(true);
 
   const filteredMembers = members.filter((m) => {
     const q = memberFilter.trim().toLowerCase();
@@ -81,6 +88,35 @@ export default function ServerPage() {
     if (profile) refreshServer();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile?.id, params.id]);
+
+  useEffect(() => {
+    if (!server?.welcomeMessage) return;
+    try {
+      const dismissed = JSON.parse(
+        window.localStorage.getItem("sns.dismissedWelcome") ?? "[]",
+      ) as string[];
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setWelcomeDismissed(dismissed.includes(server.id));
+    } catch {
+      setWelcomeDismissed(false);
+    }
+  }, [server?.id, server?.welcomeMessage]);
+
+  function dismissWelcome() {
+    if (!server) return;
+    setWelcomeDismissed(true);
+    try {
+      const dismissed = JSON.parse(
+        window.localStorage.getItem("sns.dismissedWelcome") ?? "[]",
+      ) as string[];
+      if (!dismissed.includes(server.id)) {
+        window.localStorage.setItem(
+          "sns.dismissedWelcome",
+          JSON.stringify([...dismissed, server.id]),
+        );
+      }
+    } catch {}
+  }
 
   useEffect(() => {
     if (!activeChannelId) return;
@@ -152,6 +188,36 @@ export default function ServerPage() {
       showToast("説明の更新に失敗しました", "error");
     } finally {
       setSavingTopic(false);
+    }
+  }
+
+  async function handleToggleVisibility() {
+    if (!server || savingVisibility) return;
+    setSavingVisibility(true);
+    try {
+      await updateServerVisibility(server.id, !server.isPublic);
+      showToast(server.isPublic ? "申請制に変更しました" : "公開に変更しました");
+      refreshServer();
+    } catch {
+      showToast("変更に失敗しました", "error");
+    } finally {
+      setSavingVisibility(false);
+    }
+  }
+
+  async function handleSaveWelcome(e: FormEvent) {
+    e.preventDefault();
+    if (savingWelcome) return;
+    setSavingWelcome(true);
+    try {
+      await updateServerWelcomeMessage(params.id, welcomeDraft);
+      setEditingWelcome(false);
+      refreshServer();
+      showToast("ウェルカムメッセージを更新しました");
+    } catch {
+      showToast("更新に失敗しました", "error");
+    } finally {
+      setSavingWelcome(false);
     }
   }
 
@@ -386,6 +452,66 @@ export default function ServerPage() {
                   )}
                 </div>
                 {server.myRole === "owner" && (
+                  <div>
+                    <h3 className="text-xs font-semibold mb-1">公開設定</h3>
+                    <button
+                      onClick={handleToggleVisibility}
+                      disabled={savingVisibility}
+                      className="text-xs rounded-full border border-black/20 dark:border-white/20 px-2 py-1 disabled:opacity-40"
+                    >
+                      {server.isPublic ? "公開中（誰でも参加可）" : "申請制（承認が必要）"} ・切替
+                    </button>
+                  </div>
+                )}
+                {server.myRole === "owner" && (
+                  <div>
+                    <h3 className="text-xs font-semibold mb-1">ウェルカムメッセージ</h3>
+                    {editingWelcome ? (
+                      <form onSubmit={handleSaveWelcome} className="flex flex-col gap-1.5">
+                        <textarea
+                          value={welcomeDraft}
+                          onChange={(e) => setWelcomeDraft(e.target.value)}
+                          maxLength={300}
+                          rows={3}
+                          placeholder="新しいメンバーへのメッセージ"
+                          className="resize-none rounded-md border border-black/10 dark:border-white/20 bg-transparent px-2 py-1 text-xs outline-none focus:border-black/30 dark:focus:border-white/40"
+                        />
+                        <div className="flex gap-2 self-end">
+                          <button
+                            type="button"
+                            onClick={() => setEditingWelcome(false)}
+                            className="text-xs text-black/40 dark:text-white/40"
+                          >
+                            キャンセル
+                          </button>
+                          <button
+                            type="submit"
+                            disabled={savingWelcome}
+                            className="text-xs text-blue-500 disabled:opacity-40"
+                          >
+                            保存
+                          </button>
+                        </div>
+                      </form>
+                    ) : (
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs text-black/50 dark:text-white/50 flex-1">
+                          {server.welcomeMessage || "未設定"}
+                        </p>
+                        <button
+                          onClick={() => {
+                            setWelcomeDraft(server.welcomeMessage ?? "");
+                            setEditingWelcome(true);
+                          }}
+                          className="text-xs text-black/40 dark:text-white/40 hover:underline shrink-0"
+                        >
+                          編集
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {server.myRole === "owner" && (
                   <button
                     onClick={handleDeleteServer}
                     className="text-xs text-red-500 hover:underline self-start"
@@ -393,6 +519,21 @@ export default function ServerPage() {
                     サーバーを削除
                   </button>
                 )}
+              </div>
+            )}
+
+            {server.welcomeMessage && !welcomeDismissed && (
+              <div className="p-3 border-b border-black/10 dark:border-white/10 bg-blue-500/5 flex items-start justify-between gap-2">
+                <p className="text-xs whitespace-pre-wrap break-words">
+                  👋 {server.welcomeMessage}
+                </p>
+                <button
+                  onClick={dismissWelcome}
+                  aria-label="ウェルカムメッセージを閉じる"
+                  className="text-xs text-black/40 dark:text-white/40 shrink-0"
+                >
+                  ×
+                </button>
               </div>
             )}
 

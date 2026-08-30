@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { REACTION_EMOJIS, toggleReaction, useReactions } from "@/lib/reactions-store";
+import { ReactionsModal } from "@/components/ReactionsModal";
 
 export function ReactionBar({
   postId,
@@ -10,6 +12,8 @@ export function ReactionBar({
   currentUserId: string | null;
 }) {
   const { reactions, refresh } = useReactions(postId, currentUserId);
+  const [showReactors, setShowReactors] = useState(false);
+  const totalCount = Object.values(reactions).reduce((sum, r) => sum + r.count, 0);
 
   async function handleClick(emoji: string) {
     if (!currentUserId) return;
@@ -23,7 +27,7 @@ export function ReactionBar({
   }
 
   return (
-    <div className="mt-2 flex gap-1 flex-wrap">
+    <div className="mt-2 flex items-center gap-1 flex-wrap">
       {REACTION_EMOJIS.map((emoji) => {
         const info = reactions[emoji];
         if (!info && !currentUserId) return null;
@@ -42,6 +46,17 @@ export function ReactionBar({
           </button>
         );
       })}
+      {totalCount > 0 && (
+        <button
+          onClick={() => setShowReactors(true)}
+          className="text-[11px] text-black/40 dark:text-white/40 hover:underline"
+        >
+          誰がリアクションしたか見る
+        </button>
+      )}
+      {showReactors && (
+        <ReactionsModal postId={postId} onClose={() => setShowReactors(false)} />
+      )}
     </div>
   );
 }

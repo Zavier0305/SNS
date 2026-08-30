@@ -13,6 +13,7 @@ export type Server = {
   createdAt: string;
   memberCount: number;
   myRole: ServerRole | null;
+  welcomeMessage: string | null;
 };
 
 export type Channel = {
@@ -63,6 +64,7 @@ export async function fetchServers(viewerId: string | null): Promise<Server[]> {
       createdAt: s.created_at,
       memberCount: serverMembers.length,
       myRole: (mine?.role as ServerRole) ?? null,
+      welcomeMessage: s.welcome_message,
     };
   });
 }
@@ -96,6 +98,7 @@ export async function fetchServer(
     createdAt: s.created_at,
     memberCount: (members ?? []).length,
     myRole: (mine?.role as ServerRole) ?? null,
+    welcomeMessage: s.welcome_message,
   };
 }
 
@@ -174,6 +177,22 @@ export async function updateServerTopic(serverId: string, topic: string) {
   const { error } = await supabase
     .from("sns_servers")
     .update({ topic: topic.trim() || null })
+    .eq("id", serverId);
+  if (error) throw error;
+}
+
+export async function updateServerVisibility(serverId: string, isPublic: boolean) {
+  const { error } = await supabase
+    .from("sns_servers")
+    .update({ is_public: isPublic })
+    .eq("id", serverId);
+  if (error) throw error;
+}
+
+export async function updateServerWelcomeMessage(serverId: string, message: string) {
+  const { error } = await supabase
+    .from("sns_servers")
+    .update({ welcome_message: message.trim() || null })
     .eq("id", serverId);
   if (error) throw error;
 }

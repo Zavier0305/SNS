@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type TouchEvent as ReactTouchEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
@@ -34,6 +34,11 @@ export default function Home() {
   const { followingIds, refresh: refreshFollowing } = useFollowingIds(userId);
   const { tags } = useTrendingTags();
   const sentinelRef = useRef<HTMLDivElement>(null);
+  const mainRef = useRef<HTMLElement>(null);
+  const touchStartY = useRef<number | null>(null);
+  const [pullDistance, setPullDistance] = useState(0);
+  const [pullRefreshing, setPullRefreshing] = useState(false);
+  const PULL_THRESHOLD = 70;
 
   useEffect(() => {
     if (checked && !profile) router.push("/login");
@@ -52,6 +57,13 @@ export default function Home() {
     return () => observer.disconnect();
   }, [loadMore]);
 
+  useEffect(() => {
+    if (pullRefreshing && !loading) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setPullRefreshing(false);
+    }
+  }, [pullRefreshing, loading]);
+
   if (!checked || !profile) return null;
 
   function handleFollowChange() {
@@ -59,9 +71,53 @@ export default function Home() {
     if (feed === "following") refresh();
   }
 
+  function handleTouchStart(e: ReactTouchEvent) {
+    if (pullRefreshing || (mainRef.current?.scrollTop ?? 0) > 0) {
+      touchStartY.current = null;
+      return;
+    }
+    touchStartY.current = e.touches[0].clientY;
+  }
+
+  function handleTouchMove(e: ReactTouchEvent) {
+    if (touchStartY.current === null) return;
+    const delta = e.touches[0].clientY - touchStartY.current;
+    if (delta > 0) {
+      setPullDistance(Math.min(delta * 0.5, 100));
+    }
+  }
+
+  function handleTouchEnd() {
+    if (touchStartY.current === null) return;
+    touchStartY.current = null;
+    if (pullDistance >= PULL_THRESHOLD) {
+      setPullRefreshing(true);
+      refresh();
+    }
+    setPullDistance(0);
+  }
+
   return (
     <>
-      <main className="flex-1 w-full max-w-xl mx-auto">
+      <main
+        ref={mainRef}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        className="flex-1 w-full max-w-xl mx-auto overflow-y-auto"
+      >
+        {(pullDistance > 0 || pullRefreshing) && (
+          <div
+            style={{ height: pullRefreshing ? 40 : pullDistance }}
+            className="flex items-center justify-center text-xs text-black/40 dark:text-white/40 transition-[height]"
+          >
+            {pullRefreshing
+              ? "更新中..."
+              : pullDistance >= PULL_THRESHOLD
+                ? "離して更新"
+                : "引っ張って更新"}
+          </div>
+        )}
         <div className="p-3 flex items-center justify-between border-b border-black/10 dark:border-white/10">
           <Link
             href="/search"

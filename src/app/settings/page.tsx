@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/lib/toast-context";
-import { toggleBlock, toggleMute } from "@/lib/posts-store";
+import { fetchPostsByAuthor, toggleBlock, toggleMute } from "@/lib/posts-store";
 import { fetchBlockedProfiles, fetchMutedProfiles } from "@/lib/moderation-lists-store";
 import { fetchNotificationPrefs } from "@/lib/profiles-store";
 import { addMuteWord, fetchMuteWords, removeMuteWord } from "@/lib/mute-words-store";
@@ -23,6 +23,7 @@ export default function SettingsPage() {
   const [newMuteWord, setNewMuteWord] = useState("");
   const [loading, setLoading] = useState(true);
   const [deletingAccount, setDeletingAccount] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const { supported: pushSupported, permission: pushPermission, requestPermission } =
     usePushNotifications();
 
@@ -107,6 +108,42 @@ export default function SettingsPage() {
       refresh();
     } catch {
       showToast("操作に失敗しました", "error");
+    }
+  }
+
+  async function handleExportData() {
+    if (!profile || exporting) return;
+    setExporting(true);
+    try {
+      const posts = await fetchPostsByAuthor(profile.id, profile.id);
+      const data = {
+        exportedAt: new Date().toISOString(),
+        profile: {
+          handle: profile.handle,
+          displayName: profile.displayName,
+          bio: profile.bio,
+        },
+        posts: posts.map((p) => ({
+          id: p.id,
+          content: p.content,
+          createdAt: p.createdAt,
+          likeCount: p.likeCount,
+          commentCount: p.commentCount,
+          imageUrls: p.imageUrls,
+        })),
+      };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `sns-data-${profile.handle}-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast("データをエクスポートしました");
+    } catch {
+      showToast("エクスポートに失敗しました", "error");
+    } finally {
+      setExporting(false);
     }
   }
 
@@ -276,6 +313,19 @@ export default function SettingsPage() {
               <Link href="/reports" className="text-sm text-blue-500 hover:underline">
                 通報履歴を見る
               </Link>
+            </section>
+            <section className="p-4 border-b border-black/10 dark:border-white/10">
+              <h2 className="text-sm font-semibold mb-2">データのエクスポート</h2>
+              <p className="text-xs text-black/50 dark:text-white/50 mb-2">
+                プロフィールと直近の投稿をJSON形式でダウンロードします。
+              </p>
+              <button
+                onClick={handleExportData}
+                disabled={exporting}
+                className="text-sm rounded-full border border-black/20 dark:border-white/20 px-3 py-1 disabled:opacity-40"
+              >
+                {exporting ? "エクスポート中..." : "データをエクスポート"}
+              </button>
             </section>
             <section className="p-4">
               <h2 className="text-sm font-semibold mb-2 text-red-500">危険な操作</h2>
