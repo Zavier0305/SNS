@@ -206,6 +206,22 @@ export function MoonIcon(props: IconProps) {
   );
 }
 
+export function MenuIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M4 6h16M4 12h16M4 18h16" />
+    </Base>
+  );
+}
+
+export function CloseIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M6 6l12 12M18 6 6 18" />
+    </Base>
+  );
+}
+
 export function BookmarkFilledIcon(props: IconProps) {
   return (
     <Base fill="currentColor" {...props}>
