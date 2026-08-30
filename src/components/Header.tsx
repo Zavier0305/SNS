@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 
@@ -14,10 +15,14 @@ export function Header() {
 
   return (
     <header className="border-b border-black/10 dark:border-white/10 px-4 py-3 flex items-center justify-between">
-      <span className="font-semibold">SNS</span>
+      <Link href="/" className="font-semibold">
+        SNS
+      </Link>
       {profile && (
         <div className="flex items-center gap-3 text-sm">
-          <span>{profile.displayName}</span>
+          <Link href="/profile" className="hover:underline">
+            {profile.displayName}
+          </Link>
           <span className="text-black/40 dark:text-white/40 text-xs">
             @{profile.handle}
           </span>

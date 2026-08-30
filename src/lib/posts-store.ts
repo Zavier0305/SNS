@@ -2,14 +2,37 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { POST_IMAGE_BUCKET, supabase } from "@/lib/supabase/client";
+import type { Database } from "@/lib/database.types";
 import type { FeedKind, Post } from "@/lib/types";
 
 const FEED_PAGE_SIZE = 100;
+export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
-function hotScore(likeCount: number, createdAt: string): number {
+type FeedRow = Database["public"]["Views"]["sns_feed"]["Row"];
+
+function hotScore(likeCount: number, commentCount: number, createdAt: string): number {
   const hoursSincePost =
     (Date.now() - new Date(createdAt).getTime()) / (1000 * 60 * 60);
-  return likeCount / Math.pow(Math.max(hoursSincePost, 0) + 2, 1.5);
+  return (likeCount + commentCount * 2) / Math.pow(Math.max(hoursSincePost, 0) + 2, 1.5);
+}
+
+function toPost(row: FeedRow, likedByMe: boolean): Post | null {
+  if (!row.id || !row.author_id) return null;
+  return {
+    id: row.id,
+    authorId: row.author_id,
+    authorHandle: row.author_handle ?? "",
+    authorDisplayName: row.author_display_name ?? "名無しさん",
+    content: row.content ?? "",
+    imageUrl: row.image_url,
+    createdAt: row.created_at ?? new Date().toISOString(),
+    expireAt: row.expire_at ?? new Date().toISOString(),
+    isPreserved: row.is_preserved ?? false,
+    isHidden: row.is_hidden ?? false,
+    likeCount: row.like_count ?? 0,
+    likedByMe,
+    commentCount: row.comment_count ?? 0,
+  };
 }
 
 export async function fetchFollowingIds(userId: string): Promise<string[]> {
@@ -40,6 +63,7 @@ async function fetchPosts(
   let query = supabase
     .from("sns_feed")
     .select("*")
+    .eq("is_hidden", false)
     .order("created_at", { ascending: false })
     .limit(FEED_PAGE_SIZE);
 
@@ -58,31 +82,50 @@ async function fetchPosts(
     ? await fetchMyLikedPostIds(userId, postIds)
     : new Set<string>();
 
-  const posts: Post[] = data
-    .filter(
-      (row): row is typeof row & { id: string; author_id: string } =>
-        !!row.id && !!row.author_id,
-    )
-    .map((row) => ({
-      id: row.id,
-      authorId: row.author_id,
-      authorHandle: row.author_handle ?? "",
-      authorDisplayName: row.author_display_name ?? "名無しさん",
-      content: row.content ?? "",
-      imageUrl: row.image_url,
-      createdAt: row.created_at ?? new Date().toISOString(),
-      likeCount: row.like_count ?? 0,
-      likedByMe: likedIds.has(row.id),
-    }));
+  const posts = data
+    .map((row) => toPost(row, likedIds.has(row.id ?? "")))
+    .filter((post): post is Post => post !== null);
 
   if (feed === "recommended") {
     posts.sort(
       (a, b) =>
-        hotScore(b.likeCount, b.createdAt) - hotScore(a.likeCount, a.createdAt),
+        hotScore(b.likeCount, b.commentCount, b.createdAt) -
+        hotScore(a.likeCount, a.commentCount, a.createdAt),
     );
   }
 
   return posts;
+}
+
+export async function fetchPostsByAuthor(
+  authorId: string,
+  viewerId: string | null,
+): Promise<Post[]> {
+  const { data, error } = await supabase
+    .from("sns_feed")
+    .select("*")
+    .eq("author_id", authorId)
+    .order("created_at", { ascending: false })
+    .limit(FEED_PAGE_SIZE);
+  if (error || !data) return [];
+
+  const postIds = data.map((row) => row.id).filter((id): id is string => !!id);
+  const likedIds = viewerId
+    ? await fetchMyLikedPostIds(viewerId, postIds)
+    : new Set<string>();
+
+  return data
+    .map((row) => toPost(row, likedIds.has(row.id ?? "")))
+    .filter((post): post is Post => post !== null);
+}
+
+export async function deletePost(postId: string, authorId: string) {
+  const { error } = await supabase
+    .from("sns_posts")
+    .delete()
+    .eq("id", postId)
+    .eq("author_id", authorId);
+  if (error) throw error;
 }
 
 export function usePosts(feed: FeedKind, userId: string | null) {
@@ -113,6 +156,9 @@ export async function addPost(
   let imageUrl: string | null = null;
 
   if (imageFile) {
+    if (imageFile.size > MAX_IMAGE_BYTES) {
+      throw new Error("画像は5MB以下にしてください");
+    }
     const ext = imageFile.name.split(".").pop() ?? "jpg";
     const path = `${authorId}/${crypto.randomUUID()}.${ext}`;
     const { error: uploadError } = await supabase.storage

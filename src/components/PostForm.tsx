@@ -1,7 +1,8 @@
 "use client";
 
 import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
-import { addPost } from "@/lib/posts-store";
+import { addPost, MAX_IMAGE_BYTES } from "@/lib/posts-store";
+import { useToast } from "@/lib/toast-context";
 
 export function PostForm({
   authorId,
@@ -15,9 +16,15 @@ export function PostForm({
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { showToast } = useToast();
 
   function handleImageChange(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0] ?? null;
+    if (file && file.size > MAX_IMAGE_BYTES) {
+      showToast("画像は5MB以下にしてください", "error");
+      clearImage();
+      return;
+    }
     setImageFile(file);
     setImagePreview(file ? URL.createObjectURL(file) : null);
   }
@@ -37,7 +44,10 @@ export function PostForm({
       await addPost(authorId, trimmed, imageFile);
       setContent("");
       clearImage();
+      showToast("投稿しました");
       onPosted?.();
+    } catch {
+      showToast("投稿に失敗しました", "error");
     } finally {
       setSubmitting(false);
     }

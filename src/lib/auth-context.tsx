@@ -15,6 +15,7 @@ type AuthContextValue = {
   checked: boolean;
   login: (nickname?: string) => Promise<void>;
   logout: () => Promise<void>;
+  updateNickname: (nickname: string) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -99,8 +100,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(null);
   }
 
+  async function updateNickname(nickname: string) {
+    if (!profile) throw new Error("ログインしていません");
+    const trimmed = nickname.trim();
+    if (!trimmed) throw new Error("ニックネームを入力してください");
+    const { error } = await supabase
+      .from("sns_profiles")
+      .update({ display_name: trimmed })
+      .eq("id", profile.id);
+    if (error) throw error;
+    setProfile({ ...profile, displayName: trimmed });
+  }
+
   return (
-    <AuthContext.Provider value={{ profile, checked, login, logout }}>
+    <AuthContext.Provider
+      value={{ profile, checked, login, logout, updateNickname }}
+    >
       {children}
     </AuthContext.Provider>
   );

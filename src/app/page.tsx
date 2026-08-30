@@ -71,6 +71,7 @@ export default function Home() {
               currentUserId={userId}
               isFollowing={followingIds.has(post.authorId)}
               onFollowChange={handleFollowChange}
+              onDeleted={refresh}
             />
           ))
         )}
