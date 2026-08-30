@@ -7,7 +7,6 @@ import { useAuth } from "@/lib/auth-context";
 import { useFollowingIds, usePosts } from "@/lib/posts-store";
 import { fetchPreservedPosts } from "@/lib/discovery-store";
 import { fetchSuggestedProfiles } from "@/lib/follows-store";
-import { Header } from "@/components/Header";
 import { PostCard } from "@/components/PostCard";
 import { PostListSkeleton } from "@/components/PostCardSkeleton";
 import type { Post, Profile } from "@/lib/types";
@@ -44,7 +43,6 @@ export default function ExplorePage() {
 
   return (
     <>
-      <Header />
       <main className="flex-1 w-full max-w-xl mx-auto">
         {suggested.length > 0 && (
           <div className="p-4 border-b border-black/10 dark:border-white/10">

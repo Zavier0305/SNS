@@ -28,9 +28,9 @@ import {
   type ServerMember,
 } from "@/lib/servers-store";
 import { isChannelUnread, markChannelRead } from "@/lib/channel-read-tracking";
-import { Header } from "@/components/Header";
 import { PostForm } from "@/components/PostForm";
 import { PostCard } from "@/components/PostCard";
+import { LockIcon } from "@/components/icons";
 import type { Post } from "@/lib/types";
 
 export default function ServerPage() {
@@ -242,7 +242,6 @@ export default function ServerPage() {
 
   return (
     <>
-      <Header />
       <main className="flex-1 w-full max-w-xl mx-auto">
         {server === undefined ? (
           <p className="p-4 text-sm text-black/50 dark:text-white/50">読み込み中...</p>
@@ -410,7 +409,9 @@ export default function ServerPage() {
                   >
                     #{c.name}
                     {c.postsLocked && (
-                      <span aria-label="投稿制限中のチャンネル">🔒</span>
+                      <span aria-label="投稿制限中のチャンネル">
+                        <LockIcon className="h-3 w-3" />
+                      </span>
                     )}
                     {activeChannelId !== c.id && isChannelUnread(c.id, c.lastPostAt) && (
                       <span
@@ -428,9 +429,9 @@ export default function ServerPage() {
                             ? `#${c.name}の投稿制限を解除`
                             : `#${c.name}をモデレーター限定にする`
                         }
-                        className="text-[10px] text-black/30 dark:text-white/30 hover:text-black/60 dark:hover:text-white/60 pr-1"
+                        className="flex items-center text-black/30 dark:text-white/30 hover:text-black/60 dark:hover:text-white/60 pr-1.5"
                       >
-                        {c.postsLocked ? "🔓" : "🔒"}
+                        <LockIcon className="h-3 w-3" />
                       </button>
                       <button
                         onClick={() => handleDeleteChannel(c.id)}

@@ -17,6 +17,15 @@ import { ReactionBar } from "@/components/ReactionBar";
 import { ImageLightbox } from "@/components/ImageLightbox";
 import { LikersModal } from "@/components/LikersModal";
 import { formatRelativeTime } from "@/lib/format-time";
+import {
+  HeartIcon,
+  CommentIcon,
+  RepostIcon,
+  BookmarkIcon,
+  BookmarkFilledIcon,
+  ShareIcon,
+  PinIcon,
+} from "@/components/icons";
 
 function formatTime(iso: string) {
   const date = new Date(iso);
@@ -115,6 +124,7 @@ export function PostCard({
   const [showLikers, setShowLikers] = useState(false);
   const { profile: myProfile, updatePinnedPost } = useAuth();
   const [pinningProfile, setPinningProfile] = useState(false);
+  const [showOwnMenu, setShowOwnMenu] = useState(false);
   const { showToast } = useToast();
   const { bookmarked, refresh: refreshBookmark } = useIsBookmarked(post.id, currentUserId);
   const isOwnPost = currentUserId === post.authorId;
@@ -285,13 +295,13 @@ export function PostCard({
               onClick={handlePin}
               aria-label={post.isPinned ? "ピン留めを解除" : "ピン留めする"}
               aria-pressed={post.isPinned}
-              className={`text-xs rounded-full border px-2 py-0.5 ${
+              className={`flex items-center rounded-full border px-1.5 py-1 ${
                 post.isPinned
                   ? "border-amber-400 text-amber-600 dark:text-amber-300"
                   : "border-black/20 dark:border-white/20"
               }`}
             >
-              <span aria-hidden="true">📌</span>
+              <PinIcon className="h-3.5 w-3.5" />
             </button>
           )}
           {!isOwnPost && currentUserId && (
@@ -303,38 +313,53 @@ export function PostCard({
             </button>
           )}
           {isOwnPost ? (
-            <>
-              {!post.channelId && (
-                <button
-                  onClick={handleProfilePin}
-                  disabled={pinningProfile}
-                  className={`text-xs hover:underline disabled:opacity-40 ${
-                    myProfile?.pinnedPostId === post.id
-                      ? "text-amber-600 dark:text-amber-300"
-                      : "text-black/40 dark:text-white/40"
-                  }`}
-                >
-                  {myProfile?.pinnedPostId === post.id ? "固定を解除" : "プロフィールに固定"}
-                </button>
+            <div className="relative">
+              <button
+                onClick={() => setShowOwnMenu((v) => !v)}
+                aria-label="投稿メニュー"
+                aria-expanded={showOwnMenu}
+                className="text-xs text-black/40 dark:text-white/40 px-1"
+              >
+                ⋯
+              </button>
+              {showOwnMenu && (
+                <div className="absolute right-0 z-10 mt-1 w-36 rounded-md border border-black/10 dark:border-white/20 bg-background shadow-lg text-xs overflow-hidden">
+                  {!post.channelId && (
+                    <button
+                      onClick={() => {
+                        handleProfilePin();
+                        setShowOwnMenu(false);
+                      }}
+                      disabled={pinningProfile}
+                      className="w-full text-left px-3 py-2 hover:bg-black/5 dark:hover:bg-white/10"
+                    >
+                      {myProfile?.pinnedPostId === post.id ? "固定を解除" : "プロフィールに固定"}
+                    </button>
+                  )}
+                  <button
+                    onClick={() => {
+                      setEditContent(content);
+                      setEditSensitive(sensitive);
+                      setEditing(true);
+                      setShowOwnMenu(false);
+                    }}
+                    className="w-full text-left px-3 py-2 hover:bg-black/5 dark:hover:bg-white/10"
+                  >
+                    編集
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowOwnMenu(false);
+                      handleDelete();
+                    }}
+                    disabled={deleting}
+                    className="w-full text-left px-3 py-2 hover:bg-black/5 dark:hover:bg-white/10 text-red-500"
+                  >
+                    削除
+                  </button>
+                </div>
               )}
-              <button
-                onClick={() => {
-                  setEditContent(content);
-                  setEditSensitive(sensitive);
-                  setEditing((v) => !v);
-                }}
-                className="text-xs text-black/40 dark:text-white/40 hover:underline"
-              >
-                編集
-              </button>
-              <button
-                onClick={handleDelete}
-                disabled={deleting}
-                className="text-xs text-black/40 dark:text-white/40 hover:text-red-500"
-              >
-                削除
-              </button>
-            </>
+            </div>
           ) : (
             currentUserId && (
               <PostMenu
@@ -350,8 +375,9 @@ export function PostCard({
 
       <div className="mt-1 flex gap-1.5">
         {post.isPinned && (
-          <span className="text-[10px] rounded-full bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-300 px-2 py-0.5">
-            📌 ピン留め中
+          <span className="flex items-center gap-1 text-[10px] rounded-full bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-300 px-2 py-0.5">
+            <PinIcon className="h-2.5 w-2.5" />
+            ピン留め中
           </span>
         )}
         {post.isPreserved ? (
@@ -483,45 +509,50 @@ export function PostCard({
         </div>
       )}
 
-      <div className="mt-2 flex items-center gap-4">
-        <span className="flex items-center gap-1 text-xs">
+      <div className="mt-2 flex items-center justify-between max-w-md">
+        <span className="flex items-center gap-1.5">
           <button
             onClick={handleLike}
             disabled={!currentUserId}
             aria-label={liked ? "いいねを取り消す" : "いいねする"}
             aria-pressed={liked}
-            className={liked ? "text-pink-500" : "text-black/50 dark:text-white/50"}
+            className={`flex items-center justify-center h-8 w-8 rounded-full transition-colors ${
+              liked
+                ? "text-pink-500"
+                : "text-black/50 dark:text-white/50 hover:bg-pink-500/10 hover:text-pink-500"
+            }`}
           >
-            <span aria-hidden="true">{liked ? "♥" : "♡"}</span>
+            <HeartIcon filled={liked} className="h-[18px] w-[18px]" />
           </button>
           {likeCount > 0 ? (
             <button
               onClick={() => setShowLikers(true)}
-              className="text-black/50 dark:text-white/50 hover:underline"
+              className="text-xs text-black/50 dark:text-white/50 hover:underline"
             >
               {likeCount}
             </button>
           ) : (
-            <span className="text-black/50 dark:text-white/50">{likeCount}</span>
+            <span className="text-xs text-black/50 dark:text-white/50">{likeCount}</span>
           )}
         </span>
         <button
           onClick={() => setShowComments((v) => !v)}
           aria-label="コメントを表示"
           aria-expanded={showComments}
-          className="flex items-center gap-1 text-xs text-black/50 dark:text-white/50"
+          className="flex items-center gap-1.5 text-xs text-black/50 dark:text-white/50"
         >
-          <span aria-hidden="true">💬</span>
-          <span>{commentCount}</span>
+          <span className="flex items-center justify-center h-8 w-8 rounded-full hover:bg-blue-500/10 hover:text-blue-500 transition-colors">
+            <CommentIcon className="h-[18px] w-[18px]" />
+          </span>
+          {commentCount > 0 && <span>{commentCount}</span>}
         </button>
         {onQuote && currentUserId && (
           <button
             onClick={() => onQuote(post)}
             aria-label="引用して投稿"
-            className="flex items-center gap-1 text-xs text-black/50 dark:text-white/50"
+            className="flex items-center justify-center h-8 w-8 rounded-full text-black/50 dark:text-white/50 hover:bg-green-500/10 hover:text-green-500 transition-colors"
           >
-            <span aria-hidden="true">❝</span>
-            <span>引用</span>
+            <RepostIcon className="h-[18px] w-[18px]" />
           </button>
         )}
         {currentUserId && (
@@ -529,19 +560,25 @@ export function PostCard({
             onClick={handleBookmark}
             aria-label={bookmarked ? "ブックマークを解除" : "ブックマークする"}
             aria-pressed={bookmarked}
-            className={`flex items-center gap-1 text-xs ${
-              bookmarked ? "text-blue-500" : "text-black/50 dark:text-white/50"
+            className={`flex items-center justify-center h-8 w-8 rounded-full transition-colors ${
+              bookmarked
+                ? "text-blue-500"
+                : "text-black/50 dark:text-white/50 hover:bg-blue-500/10 hover:text-blue-500"
             }`}
           >
-            <span aria-hidden="true">{bookmarked ? "🔖" : "📑"}</span>
+            {bookmarked ? (
+              <BookmarkFilledIcon className="h-[18px] w-[18px]" />
+            ) : (
+              <BookmarkIcon className="h-[18px] w-[18px]" />
+            )}
           </button>
         )}
         <button
           onClick={handleShare}
           aria-label="共有する"
-          className="flex items-center gap-1 text-xs text-black/50 dark:text-white/50"
+          className="flex items-center justify-center h-8 w-8 rounded-full text-black/50 dark:text-white/50 hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
         >
-          <span aria-hidden="true">↗️</span>
+          <ShareIcon className="h-[18px] w-[18px]" />
         </button>
       </div>
       <ReactionBar postId={post.id} currentUserId={currentUserId} />

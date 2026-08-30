@@ -12,7 +12,6 @@ import {
   leaveServer,
   type Server,
 } from "@/lib/servers-store";
-import { Header } from "@/components/Header";
 
 export default function ServersPage() {
   const { profile, checked } = useAuth();
@@ -85,7 +84,6 @@ export default function ServersPage() {
 
   return (
     <>
-      <Header />
       <main className="flex-1 w-full max-w-xl mx-auto">
         <form
           onSubmit={handleCreate}

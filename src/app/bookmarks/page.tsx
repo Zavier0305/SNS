@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { fetchBookmarkedPosts } from "@/lib/bookmarks-store";
 import { useFollowingIds } from "@/lib/posts-store";
-import { Header } from "@/components/Header";
 import { PostCard } from "@/components/PostCard";
 import type { Post } from "@/lib/types";
 
@@ -43,7 +42,6 @@ export default function BookmarksPage() {
 
   return (
     <>
-      <Header />
       <main className="flex-1 w-full max-w-xl mx-auto">
         <h1 className="p-4 text-lg font-semibold border-b border-black/10 dark:border-white/10">
           ブックマーク

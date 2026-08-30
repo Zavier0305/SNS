@@ -13,7 +13,6 @@ import {
   getSearchHistory,
   removeSearchHistoryItem,
 } from "@/lib/search-history";
-import { Header } from "@/components/Header";
 import { PostCard } from "@/components/PostCard";
 import type { Post, Profile } from "@/lib/types";
 
@@ -90,7 +89,6 @@ export default function SearchPage() {
 
   return (
     <>
-      <Header />
       <main className="flex-1 w-full max-w-xl mx-auto">
         <div className="flex border-b border-black/10 dark:border-white/10">
           {(

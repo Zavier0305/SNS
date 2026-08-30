@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/lib/supabase/client";
-import { Header } from "@/components/Header";
 
 type ReportRow = {
   id: string;
@@ -59,7 +58,6 @@ export default function ReportsPage() {
 
   return (
     <>
-      <Header />
       <main className="flex-1 w-full max-w-xl mx-auto">
         <h1 className="p-4 text-lg font-semibold border-b border-black/10 dark:border-white/10">
           通報履歴

@@ -6,7 +6,6 @@ import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { fetchProfileByHandle } from "@/lib/profiles-store";
 import { fetchFollowerProfiles, fetchFollowingProfiles } from "@/lib/follows-store";
-import { Header } from "@/components/Header";
 import type { Profile } from "@/lib/types";
 
 export default function FollowsListPage() {
@@ -42,7 +41,6 @@ export default function FollowsListPage() {
 
   return (
     <>
-      <Header />
       <main className="flex-1 w-full max-w-xl mx-auto">
         <h1 className="p-4 text-lg font-semibold border-b border-black/10 dark:border-white/10">
           @{params.handle} の{kind === "followers" ? "フォロワー" : "フォロー中"}

@@ -10,7 +10,6 @@ import { fetchBlockedProfiles, fetchMutedProfiles } from "@/lib/moderation-lists
 import { fetchNotificationPrefs } from "@/lib/profiles-store";
 import { addMuteWord, fetchMuteWords, removeMuteWord } from "@/lib/mute-words-store";
 import { usePushNotifications } from "@/lib/push-notifications";
-import { Header } from "@/components/Header";
 import type { NotificationPrefs, Profile } from "@/lib/types";
 
 export default function SettingsPage() {
@@ -131,7 +130,6 @@ export default function SettingsPage() {
 
   return (
     <>
-      <Header />
       <main className="flex-1 w-full max-w-xl mx-auto">
         <h1 className="p-4 text-lg font-semibold border-b border-black/10 dark:border-white/10">
           設定

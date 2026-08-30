@@ -3,7 +3,6 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { Header } from "@/components/Header";
 import { ProfileView } from "@/components/ProfileView";
 
 export default function ProfilePage() {
@@ -18,7 +17,6 @@ export default function ProfilePage() {
 
   return (
     <>
-      <Header />
       <main className="flex-1 w-full max-w-xl mx-auto">
         <ProfileView profile={profile} currentUserId={profile.id} isFollowing={false} />
       </main>

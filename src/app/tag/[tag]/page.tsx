@@ -5,7 +5,6 @@ import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useFollowingIds } from "@/lib/posts-store";
 import { fetchPostsByTag } from "@/lib/discovery-store";
-import { Header } from "@/components/Header";
 import { PostCard } from "@/components/PostCard";
 import type { Post } from "@/lib/types";
 
@@ -33,7 +32,6 @@ export default function TagPage() {
 
   return (
     <>
-      <Header />
       <main className="flex-1 w-full max-w-xl mx-auto">
         <h1 className="p-4 text-lg font-semibold border-b border-black/10 dark:border-white/10">
           #{params.tag}

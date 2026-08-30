@@ -3,18 +3,21 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
+import { useUnreadNotificationCount } from "@/lib/notifications-store";
+import { HomeIcon, SearchIcon, ServersIcon, BellIcon, UserIcon } from "@/components/icons";
 
 const ITEMS = [
-  { href: "/", label: "ホーム", icon: "🏠" },
-  { href: "/search", label: "検索", icon: "🔍" },
-  { href: "/explore", label: "発見", icon: "✨" },
-  { href: "/notifications", label: "通知", icon: "🔔" },
-  { href: "/profile", label: "自分", icon: "👤" },
+  { href: "/", label: "ホーム", Icon: HomeIcon, badge: false },
+  { href: "/search", label: "検索", Icon: SearchIcon, badge: false },
+  { href: "/servers", label: "サーバー", Icon: ServersIcon, badge: false },
+  { href: "/notifications", label: "通知", Icon: BellIcon, badge: true },
+  { href: "/profile", label: "自分", Icon: UserIcon, badge: false },
 ] as const;
 
 export function BottomNav() {
   const { profile } = useAuth();
   const pathname = usePathname();
+  const { count } = useUnreadNotificationCount(profile?.id ?? null);
 
   if (!profile) return null;
 
@@ -30,14 +33,17 @@ export function BottomNav() {
             key={item.href}
             href={item.href}
             aria-current={active ? "page" : undefined}
-            className={`flex-1 flex flex-col items-center gap-0.5 py-2 text-[10px] ${
+            className={`relative flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[10px] ${
               active ? "text-foreground" : "text-black/40 dark:text-white/40"
             }`}
           >
-            <span aria-hidden="true" className="text-base">
-              {item.icon}
-            </span>
+            <item.Icon className="h-5 w-5" />
             {item.label}
+            {item.badge && count > 0 && (
+              <span className="absolute top-1 right-[calc(50%-16px)] min-w-[14px] h-[14px] rounded-full bg-red-500 text-white text-[9px] flex items-center justify-center px-0.5">
+                {count > 9 ? "9+" : count}
+              </span>
+            )}
           </Link>
         );
       })}

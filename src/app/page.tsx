@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useFollowingIds, usePosts } from "@/lib/posts-store";
 import { useTrendingTags } from "@/lib/discovery-store";
-import { Header } from "@/components/Header";
 import { PostForm } from "@/components/PostForm";
 import { PostCard } from "@/components/PostCard";
 import { PostListSkeleton } from "@/components/PostCardSkeleton";
@@ -62,7 +61,6 @@ export default function Home() {
 
   return (
     <>
-      <Header />
       <main className="flex-1 w-full max-w-xl mx-auto">
         <div className="p-3 flex items-center justify-between border-b border-black/10 dark:border-white/10">
           <Link

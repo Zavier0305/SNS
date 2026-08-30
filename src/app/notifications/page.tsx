@@ -10,7 +10,6 @@ import {
   markNotificationRead,
   type Notification,
 } from "@/lib/notifications-store";
-import { Header } from "@/components/Header";
 
 const LABELS: Record<Notification["type"], string> = {
   like: "があなたの投稿にいいねしました",
@@ -76,7 +75,6 @@ export default function NotificationsPage() {
 
   return (
     <>
-      <Header />
       <main className="flex-1 w-full max-w-xl mx-auto">
         <div className="flex items-center justify-between p-4 border-b border-black/10 dark:border-white/10">
           <h1 className="text-lg font-semibold">通知</h1>

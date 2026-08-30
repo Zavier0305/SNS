@@ -10,6 +10,7 @@ import {
 } from "react";
 import { addPost, MAX_IMAGE_BYTES, MAX_IMAGES_PER_POST } from "@/lib/posts-store";
 import { useToast } from "@/lib/toast-context";
+import { ImageIcon, PollIcon, WarningIcon } from "@/components/icons";
 import type { Post } from "@/lib/types";
 
 const MAX_POLL_OPTIONS = 4;
@@ -273,9 +274,12 @@ export function PostForm({
         </div>
       )}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <label className="text-xs text-black/60 dark:text-white/60 cursor-pointer hover:underline">
-            画像を追加（最大{MAX_IMAGES_PER_POST}枚）
+        <div className="flex items-center gap-1">
+          <label
+            aria-label={`画像を追加（最大${MAX_IMAGES_PER_POST}枚）`}
+            className="flex items-center justify-center h-8 w-8 rounded-full text-black/50 dark:text-white/50 hover:bg-black/5 dark:hover:bg-white/10 cursor-pointer"
+          >
+            <ImageIcon className="h-[18px] w-[18px]" />
             <input
               ref={fileInputRef}
               type="file"
@@ -289,18 +293,27 @@ export function PostForm({
             <button
               type="button"
               onClick={() => setPollOptions(["", ""])}
-              className="text-xs text-black/60 dark:text-white/60 hover:underline"
+              aria-label="投票を追加"
+              className="flex items-center justify-center h-8 w-8 rounded-full text-black/50 dark:text-white/50 hover:bg-black/5 dark:hover:bg-white/10"
             >
-              投票を追加
+              <PollIcon className="h-[18px] w-[18px]" />
             </button>
           )}
-          <label className="flex items-center gap-1 text-xs text-black/60 dark:text-white/60 cursor-pointer">
+          <label
+            aria-label="閲覧注意として投稿"
+            className={`flex items-center justify-center h-8 w-8 rounded-full cursor-pointer ${
+              isSensitive
+                ? "text-amber-600 dark:text-amber-300 bg-amber-500/10"
+                : "text-black/50 dark:text-white/50 hover:bg-black/5 dark:hover:bg-white/10"
+            }`}
+          >
             <input
               type="checkbox"
               checked={isSensitive}
               onChange={(e) => setIsSensitive(e.target.checked)}
+              className="hidden"
             />
-            閲覧注意
+            <WarningIcon className="h-[18px] w-[18px]" />
           </label>
         </div>
         <div className="flex items-center gap-2">

@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/lib/supabase/client";
-import { Header } from "@/components/Header";
 
 type Stats = {
   users: number;
@@ -86,7 +85,6 @@ export default function AdminPage() {
   if (!isAdmin) {
     return (
       <>
-        <Header />
         <main className="flex-1 w-full max-w-xl mx-auto">
           <p className="p-4 text-sm text-black/50 dark:text-white/50">
             ページが見つかりません。
@@ -98,7 +96,6 @@ export default function AdminPage() {
 
   return (
     <>
-      <Header />
       <main className="flex-1 w-full max-w-xl mx-auto">
         <h1 className="p-4 text-lg font-semibold border-b border-black/10 dark:border-white/10">
           管理ダッシュボード
