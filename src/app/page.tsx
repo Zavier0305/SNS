@@ -148,12 +148,6 @@ export default function Home() {
             ))}
           </div>
         )}
-        <PostForm
-          authorId={profile.id}
-          onPosted={refresh}
-          quotedPost={quotedPost}
-          onCancelQuote={() => setQuotedPost(null)}
-        />
         <div className="flex border-b border-black/10 dark:border-white/10">
           {(
             [
@@ -173,6 +167,14 @@ export default function Home() {
               {tab.label}
             </button>
           ))}
+        </div>
+        <div className="pt-3">
+          <PostForm
+            authorId={profile.id}
+            onPosted={refresh}
+            quotedPost={quotedPost}
+            onCancelQuote={() => setQuotedPost(null)}
+          />
         </div>
         {hasNew && (
           <button

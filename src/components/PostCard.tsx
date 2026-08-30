@@ -16,6 +16,7 @@ import { PostMenu } from "@/components/PostMenu";
 import { ReactionBar } from "@/components/ReactionBar";
 import { ImageLightbox } from "@/components/ImageLightbox";
 import { LikersModal } from "@/components/LikersModal";
+import { Avatar } from "@/components/Avatar";
 import { formatRelativeTime } from "@/lib/format-time";
 import {
   HeartIcon,
@@ -293,7 +294,16 @@ export function PostCard({
   if (hidden) return null;
 
   return (
-    <article className="p-4 border-b border-black/10 dark:border-white/10">
+    <article className="p-4 mx-2 sm:mx-3 mb-3 rounded-xl border border-black/10 dark:border-white/10 bg-background shadow-sm">
+      <div className="flex gap-3">
+        <Link href={`/u/${post.authorHandle}`} className="shrink-0 mt-0.5">
+          <Avatar
+            name={post.authorDisplayName}
+            handle={post.authorHandle}
+            className="h-10 w-10 text-sm"
+          />
+        </Link>
+        <div className="flex-1 min-w-0">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-baseline gap-2 min-w-0">
           <Link
@@ -620,6 +630,8 @@ export function PostCard({
           }
         />
       )}
+        </div>
+      </div>
     </article>
   );
 }

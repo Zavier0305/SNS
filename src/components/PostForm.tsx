@@ -10,7 +10,9 @@ import {
 } from "react";
 import { addPost, MAX_IMAGE_BYTES, MAX_IMAGES_PER_POST } from "@/lib/posts-store";
 import { useToast } from "@/lib/toast-context";
+import { useAuth } from "@/lib/auth-context";
 import { ImageIcon, PollIcon, WarningIcon } from "@/components/icons";
+import { Avatar } from "@/components/Avatar";
 import type { Post } from "@/lib/types";
 
 const MAX_POLL_OPTIONS = 4;
@@ -40,9 +42,12 @@ export function PostForm({
   const [isSensitive, setIsSensitive] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
+  const [expanded, setExpanded] = useState(!!quotedPost);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { showToast } = useToast();
+  const { profile } = useAuth();
   const rateLimitKey = `sns.postTimestamps.${authorId}`;
 
   function recordPostTimestamp() {
@@ -79,12 +84,17 @@ export function PostForm({
   }, [authorId]);
 
   useEffect(() => {
-    if (quotedPost) return;
+    if (quotedPost) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setExpanded(true);
+      return;
+    }
     const draft = localStorage.getItem(draftKey);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (draft) setContent(draft);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [draftKey]);
+    if (draft) {
+      setContent(draft);
+      setExpanded(true);
+    }
+  }, [draftKey, quotedPost]);
 
   useEffect(() => {
     if (content) {
@@ -162,6 +172,7 @@ export function PostForm({
       clearImages();
       setPollOptions(null);
       setIsSensitive(false);
+      setExpanded(false);
       showToast("投稿しました");
       onCancelQuote?.();
       onPosted?.();
@@ -179,12 +190,44 @@ export function PostForm({
     }
   }
 
+  if (!expanded) {
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          setExpanded(true);
+          requestAnimationFrame(() => textareaRef.current?.focus());
+        }}
+        className="flex w-full items-center gap-3 mx-2 sm:mx-3 mb-3 p-3 rounded-xl border border-black/10 dark:border-white/10 bg-background text-left shadow-sm hover:bg-black/5 dark:hover:bg-white/[0.06] transition-colors"
+      >
+        <Avatar
+          name={profile?.displayName ?? ""}
+          handle={profile?.handle ?? ""}
+          className="h-9 w-9 text-sm"
+        />
+        <span className="text-sm text-black/40 dark:text-white/40">いまどうしてる？</span>
+      </button>
+    );
+  }
+
   return (
     <form
       ref={formRef}
       onSubmit={handleSubmit}
-      className="flex flex-col gap-2 p-4 border-b border-black/10 dark:border-white/10"
+      className="flex flex-col gap-2 mx-2 sm:mx-3 mb-3 p-4 rounded-xl border border-black/10 dark:border-white/10 bg-background shadow-sm"
     >
+      {!quotedPost && !content && images.length === 0 && !pollOptions && (
+        <div className="flex justify-end -mt-1 -mr-1">
+          <button
+            type="button"
+            onClick={() => setExpanded(false)}
+            aria-label="閉じる"
+            className="text-black/30 dark:text-white/30 hover:text-black dark:hover:text-white text-sm px-1"
+          >
+            ×
+          </button>
+        </div>
+      )}
       {quotedPost && (
         <div className="flex items-start justify-between rounded-md border border-black/10 dark:border-white/10 p-2 text-xs">
           <div>
@@ -203,6 +246,7 @@ export function PostForm({
         </div>
       )}
       <textarea
+        ref={textareaRef}
         value={content}
         onChange={(e) => setContent(e.target.value)}
         onKeyDown={handleKeyDown}
