@@ -34,6 +34,7 @@ export default function NotificationsPage() {
   const router = useRouter();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<"all" | Notification["type"]>("all");
   const { refresh: refreshUnreadCount } = useUnreadNotificationCount(profile?.id ?? null);
 
   useEffect(() => {
@@ -67,6 +68,15 @@ export default function NotificationsPage() {
   if (!checked || !profile) return null;
 
   const hasUnread = notifications.some((n) => !n.readAt);
+  const filtered =
+    filter === "all" ? notifications : notifications.filter((n) => n.type === filter);
+  const FILTER_TABS: { key: "all" | Notification["type"]; label: string }[] = [
+    { key: "all", label: "すべて" },
+    { key: "like", label: "いいね" },
+    { key: "comment", label: "コメント" },
+    { key: "follow", label: "フォロー" },
+    { key: "reaction", label: "リアクション" },
+  ];
 
   return (
     <>
@@ -83,14 +93,29 @@ export default function NotificationsPage() {
             </button>
           )}
         </div>
+        <div className="flex overflow-x-auto border-b border-black/10 dark:border-white/10">
+          {FILTER_TABS.map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setFilter(t.key)}
+              className={`shrink-0 px-3 py-2 text-xs font-medium ${
+                filter === t.key
+                  ? "border-b-2 border-foreground"
+                  : "text-black/50 dark:text-white/50"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
         {loading ? (
           <p className="p-4 text-sm text-black/50 dark:text-white/50">読み込み中...</p>
-        ) : notifications.length === 0 ? (
+        ) : filtered.length === 0 ? (
           <p className="p-4 text-sm text-black/50 dark:text-white/50">
             通知はまだありません。
           </p>
         ) : (
-          notifications.map((n) => (
+          filtered.map((n) => (
             <div
               key={n.id}
               onClick={() => !n.readAt && handleMarkRead(n.id)}

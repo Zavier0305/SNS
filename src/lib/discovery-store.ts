@@ -26,12 +26,16 @@ export async function searchPosts(
 ): Promise<Post[]> {
   const trimmed = query.trim();
   if (!trimmed) return [];
+  const keywords = trimmed.split(/\s+/).filter(Boolean).slice(0, 5);
 
-  const { data } = await supabase
+  let filtered = supabase
     .from("sns_feed")
     .select("id")
-    .eq("is_hidden", false)
-    .ilike("content", `%${trimmed}%`)
+    .eq("is_hidden", false);
+  for (const keyword of keywords) {
+    filtered = filtered.ilike("content", `%${keyword}%`);
+  }
+  const { data } = await filtered
     .order("created_at", { ascending: false })
     .limit(PAGE_SIZE);
   const postIds = (data ?? [])

@@ -83,6 +83,15 @@ export function ProfileView({
     fetchFollowCounts(profile.id).then(setFollowCounts);
   }, [profile.id, following]);
 
+  const pinnedPost = useMemo(
+    () => posts.find((p) => p.id === displayedProfile.pinnedPostId) ?? null,
+    [posts, displayedProfile.pinnedPostId],
+  );
+  const unpinnedPosts = useMemo(
+    () => (pinnedPost ? posts.filter((p) => p.id !== pinnedPost.id) : posts),
+    [posts, pinnedPost],
+  );
+
   const stats = useMemo(
     () => ({
       postCount: posts.length,
@@ -91,6 +100,24 @@ export function ProfileView({
     }),
     [posts],
   );
+
+  async function handleShareProfile() {
+    const url = `${window.location.origin}/u/${profile.handle}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ url, title: profile.displayName });
+      } catch {
+        // user cancelled the share sheet; nothing to do
+      }
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      showToast("リンクをコピーしました");
+    } catch {
+      showToast("コピーに失敗しました", "error");
+    }
+  }
 
   async function handleFollow() {
     if (!currentUserId || isOwnProfile) return;
@@ -262,6 +289,13 @@ export function ProfileView({
             </h1>
             <p className="text-xs text-black/40 dark:text-white/40">
               @{profile.handle}
+              <button
+                onClick={handleShareProfile}
+                aria-label="プロフィールを共有"
+                className="ml-1.5 hover:underline"
+              >
+                ↗️
+              </button>
             </p>
             {!isOwnProfile && displayedProfile.bio && (
               <p className="mt-1 text-sm whitespace-pre-wrap break-words">
@@ -385,6 +419,19 @@ export function ProfileView({
           )}
         </div>
       )}
+      {pinnedPost && (
+        <div className="border-b border-black/10 dark:border-white/10">
+          <p className="px-4 pt-2 text-[10px] text-amber-600 dark:text-amber-300">
+            📌 固定表示中
+          </p>
+          <PostCard
+            post={pinnedPost}
+            currentUserId={currentUserId}
+            isFollowing={following}
+            onDeleted={refresh}
+          />
+        </div>
+      )}
       {loading ? (
         <p className="p-4 text-sm text-black/50 dark:text-white/50">読み込み中...</p>
       ) : posts.length === 0 ? (
@@ -392,7 +439,7 @@ export function ProfileView({
           まだ投稿がありません。
         </p>
       ) : (
-        posts.map((post) => (
+        unpinnedPosts.map((post) => (
           <div key={post.id} className="flex items-start">
             {selectMode && (
               <label className="flex items-center pl-4 pt-4 shrink-0">

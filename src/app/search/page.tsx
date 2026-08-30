@@ -29,7 +29,13 @@ export default function SearchPage() {
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
+  const [followingOnly, setFollowingOnly] = useState(false);
   const { followingIds } = useFollowingIds(profile?.id ?? null);
+
+  const visiblePosts =
+    mode === "posts" && followingOnly
+      ? posts.filter((p) => followingIds.has(p.authorId))
+      : posts;
 
   useEffect(() => {
     if (checked && !profile) router.push("/login");
@@ -80,7 +86,7 @@ export default function SearchPage() {
 
   if (!checked || !profile) return null;
 
-  const results = mode === "posts" ? posts : users;
+  const results = mode === "posts" ? visiblePosts : users;
 
   return (
     <>
@@ -127,6 +133,16 @@ export default function SearchPage() {
             検索
           </button>
         </form>
+        {mode === "posts" && (
+          <label className="flex items-center gap-1.5 px-4 pb-3 text-xs text-black/60 dark:text-white/60 -mt-1">
+            <input
+              type="checkbox"
+              checked={followingOnly}
+              onChange={(e) => setFollowingOnly(e.target.checked)}
+            />
+            フォロー中のユーザーのみ
+          </label>
+        )}
         {!searched && history.length > 0 && (
           <div className="p-4 border-b border-black/10 dark:border-white/10">
             <div className="flex items-center justify-between mb-2">
@@ -168,7 +184,7 @@ export default function SearchPage() {
             該当する{mode === "posts" ? "投稿" : "ユーザー"}が見つかりませんでした。
           </p>
         ) : mode === "posts" ? (
-          posts.map((post) => (
+          visiblePosts.map((post) => (
             <PostCard
               key={post.id}
               post={post}

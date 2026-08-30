@@ -14,7 +14,12 @@ export default function BookmarksPage() {
   const router = useRouter();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState("");
   const { followingIds } = useFollowingIds(profile?.id ?? null);
+
+  const filteredPosts = query.trim()
+    ? posts.filter((p) => p.content.toLowerCase().includes(query.trim().toLowerCase()))
+    : posts;
 
   useEffect(() => {
     if (checked && !profile) router.push("/login");
@@ -43,14 +48,28 @@ export default function BookmarksPage() {
         <h1 className="p-4 text-lg font-semibold border-b border-black/10 dark:border-white/10">
           ブックマーク
         </h1>
+        {posts.length > 0 && (
+          <div className="p-4 border-b border-black/10 dark:border-white/10">
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="ブックマークを検索"
+              className="w-full rounded-md border border-black/10 dark:border-white/20 bg-transparent px-2 py-1.5 text-sm outline-none focus:border-black/30 dark:focus:border-white/40"
+            />
+          </div>
+        )}
         {loading ? (
           <p className="p-4 text-sm text-black/50 dark:text-white/50">読み込み中...</p>
         ) : posts.length === 0 ? (
           <p className="p-4 text-sm text-black/50 dark:text-white/50">
             ブックマークした投稿はまだありません。
           </p>
+        ) : filteredPosts.length === 0 ? (
+          <p className="p-4 text-sm text-black/50 dark:text-white/50">
+            該当するブックマークが見つかりませんでした。
+          </p>
         ) : (
-          posts.map((post) => (
+          filteredPosts.map((post) => (
             <PostCard
               key={post.id}
               post={post}

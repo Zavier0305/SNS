@@ -7,6 +7,7 @@ import type { Post } from "@/lib/types";
 import { deletePost, toggleFollow, toggleLike, updatePost } from "@/lib/posts-store";
 import { togglePin } from "@/lib/servers-store";
 import { toggleBookmark, useIsBookmarked } from "@/lib/bookmarks-store";
+import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/lib/toast-context";
 import { supabase } from "@/lib/supabase/client";
 import { CommentSection } from "@/components/CommentSection";
@@ -112,6 +113,8 @@ export function PostCard({
   const [sensitive, setSensitive] = useState(post.isSensitive);
   const [revealed, setRevealed] = useState(false);
   const [showLikers, setShowLikers] = useState(false);
+  const { profile: myProfile, updatePinnedPost } = useAuth();
+  const [pinningProfile, setPinningProfile] = useState(false);
   const { showToast } = useToast();
   const { bookmarked, refresh: refreshBookmark } = useIsBookmarked(post.id, currentUserId);
   const isOwnPost = currentUserId === post.authorId;
@@ -188,6 +191,20 @@ export function PostCard({
       showToast("編集に失敗しました", "error");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleProfilePin() {
+    if (!isOwnPost || pinningProfile) return;
+    const isPinnedToProfile = myProfile?.pinnedPostId === post.id;
+    setPinningProfile(true);
+    try {
+      await updatePinnedPost(isPinnedToProfile ? null : post.id);
+      showToast(isPinnedToProfile ? "固定を解除しました" : "プロフィールに固定しました");
+    } catch {
+      showToast("操作に失敗しました", "error");
+    } finally {
+      setPinningProfile(false);
     }
   }
 
@@ -287,6 +304,19 @@ export function PostCard({
           )}
           {isOwnPost ? (
             <>
+              {!post.channelId && (
+                <button
+                  onClick={handleProfilePin}
+                  disabled={pinningProfile}
+                  className={`text-xs hover:underline disabled:opacity-40 ${
+                    myProfile?.pinnedPostId === post.id
+                      ? "text-amber-600 dark:text-amber-300"
+                      : "text-black/40 dark:text-white/40"
+                  }`}
+                >
+                  {myProfile?.pinnedPostId === post.id ? "固定を解除" : "プロフィールに固定"}
+                </button>
+              )}
               <button
                 onClick={() => {
                   setEditContent(content);

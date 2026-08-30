@@ -21,6 +21,7 @@ export type Channel = {
   name: string;
   createdAt: string;
   lastPostAt: string | null;
+  postsLocked: boolean;
 };
 
 export type ServerMember = {
@@ -150,13 +151,30 @@ export async function fetchChannels(serverId: string): Promise<Channel[]> {
     name: c.name,
     createdAt: c.created_at,
     lastPostAt: lastPostAt.get(c.id) ?? null,
+    postsLocked: c.posts_locked,
   }));
 }
 
-export async function createChannel(serverId: string, name: string) {
+export async function createChannel(serverId: string, name: string, postsLocked = false) {
   const { error } = await supabase
     .from("sns_channels")
-    .insert({ server_id: serverId, name });
+    .insert({ server_id: serverId, name, posts_locked: postsLocked });
+  if (error) throw error;
+}
+
+export async function setChannelLocked(channelId: string, postsLocked: boolean) {
+  const { error } = await supabase
+    .from("sns_channels")
+    .update({ posts_locked: postsLocked })
+    .eq("id", channelId);
+  if (error) throw error;
+}
+
+export async function updateServerTopic(serverId: string, topic: string) {
+  const { error } = await supabase
+    .from("sns_servers")
+    .update({ topic: topic.trim() || null })
+    .eq("id", serverId);
   if (error) throw error;
 }
 

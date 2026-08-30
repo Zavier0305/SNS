@@ -20,6 +20,7 @@ type AuthContextValue = {
   updateNotificationPrefs: (prefs: NotificationPrefs) => Promise<void>;
   updateBio: (bio: string) => Promise<void>;
   updateCoverUrl: (coverUrl: string | null) => Promise<void>;
+  updatePinnedPost: (postId: string | null) => Promise<void>;
   deleteAccount: () => Promise<void>;
 };
 
@@ -33,6 +34,7 @@ function toProfile(row: {
   theme_color: string | null;
   bio: string | null;
   cover_url: string | null;
+  pinned_post_id: string | null;
 }): Profile {
   return {
     id: row.id,
@@ -42,13 +44,14 @@ function toProfile(row: {
     themeColor: row.theme_color,
     bio: row.bio,
     coverUrl: row.cover_url,
+    pinnedPostId: row.pinned_post_id,
   };
 }
 
 async function fetchProfile(userId: string): Promise<Profile | null> {
   const { data } = await supabase
     .from("sns_profiles")
-    .select("id, handle, display_name, created_at, theme_color, bio, cover_url")
+    .select("id, handle, display_name, created_at, theme_color, bio, cover_url, pinned_post_id")
     .eq("id", userId)
     .single();
   return data ? toProfile(data) : null;
@@ -167,6 +170,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile({ ...profile, coverUrl });
   }
 
+  async function updatePinnedPost(postId: string | null) {
+    if (!profile) throw new Error("ログインしていません");
+    const { error } = await supabase
+      .from("sns_profiles")
+      .update({ pinned_post_id: postId })
+      .eq("id", profile.id);
+    if (error) throw error;
+    setProfile({ ...profile, pinnedPostId: postId });
+  }
+
   async function deleteAccount() {
     if (!profile) throw new Error("ログインしていません");
     const { error } = await supabase.rpc("sns_delete_account");
@@ -187,6 +200,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         updateNotificationPrefs,
         updateBio,
         updateCoverUrl,
+        updatePinnedPost,
         deleteAccount,
       }}
     >

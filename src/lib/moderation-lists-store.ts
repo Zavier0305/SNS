@@ -7,7 +7,7 @@ async function fetchProfilesByIds(ids: string[]): Promise<Profile[]> {
   if (ids.length === 0) return [];
   const { data } = await supabase
     .from("sns_profiles")
-    .select("id, handle, display_name, created_at, theme_color, bio, cover_url")
+    .select("id, handle, display_name, created_at, theme_color, bio, cover_url, pinned_post_id")
     .in("id", ids);
   return (data ?? []).map((row) => ({
     id: row.id,
@@ -17,6 +17,7 @@ async function fetchProfilesByIds(ids: string[]): Promise<Profile[]> {
     themeColor: row.theme_color,
     bio: row.bio,
     coverUrl: row.cover_url,
+    pinnedPostId: row.pinned_post_id,
   }));
 }
 

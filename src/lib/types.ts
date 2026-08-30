@@ -6,6 +6,7 @@ export type Profile = {
   themeColor: string | null;
   bio: string | null;
   coverUrl: string | null;
+  pinnedPostId: string | null;
 };
 
 export type NotificationPrefs = {

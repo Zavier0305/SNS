@@ -21,9 +21,16 @@ export function PostMenu({
   async function handleReport() {
     const reason = prompt("通報理由を入力してください");
     if (!reason?.trim()) return;
+    const alsoBlock = confirm("このユーザーを同時にブロックしますか？");
     try {
       await reportContent(currentUserId, { postId }, reason.trim());
-      showToast("通報しました");
+      if (alsoBlock) {
+        await toggleBlock(authorId, currentUserId, false);
+        showToast("通報し、ブロックしました");
+        onHidden?.();
+      } else {
+        showToast("通報しました");
+      }
     } catch {
       showToast("通報に失敗しました", "error");
     }

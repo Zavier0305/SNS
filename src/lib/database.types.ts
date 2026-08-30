@@ -68,9 +68,27 @@ export type Database = {
         ]
       }
       sns_channels: {
-        Row: { created_at: string; id: string; name: string; server_id: string }
-        Insert: { created_at?: string; id?: string; name: string; server_id: string }
-        Update: { created_at?: string; id?: string; name?: string; server_id?: string }
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          posts_locked: boolean
+          server_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          posts_locked?: boolean
+          server_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          posts_locked?: boolean
+          server_id?: string
+        }
         Relationships: [
           {
             foreignKeyName: "sns_channels_server_id_fkey"
@@ -431,6 +449,7 @@ export type Database = {
           notify_comments: boolean
           notify_follows: boolean
           notify_likes: boolean
+          pinned_post_id: string | null
           theme_color: string | null
         }
         Insert: {
@@ -443,6 +462,7 @@ export type Database = {
           notify_comments?: boolean
           notify_follows?: boolean
           notify_likes?: boolean
+          pinned_post_id?: string | null
           theme_color?: string | null
         }
         Update: {
@@ -455,9 +475,25 @@ export type Database = {
           notify_comments?: boolean
           notify_follows?: boolean
           notify_likes?: boolean
+          pinned_post_id?: string | null
           theme_color?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "sns_profiles_pinned_post_id_fkey"
+            columns: ["pinned_post_id"]
+            isOneToOne: false
+            referencedRelation: "sns_feed"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sns_profiles_pinned_post_id_fkey"
+            columns: ["pinned_post_id"]
+            isOneToOne: false
+            referencedRelation: "sns_posts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sns_reactions: {
         Row: { created_at: string; emoji: string; post_id: string; user_id: string }

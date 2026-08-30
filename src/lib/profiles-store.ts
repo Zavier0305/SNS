@@ -16,7 +16,8 @@ export async function uploadCoverImage(userId: string, file: File): Promise<stri
   return supabase.storage.from(POST_IMAGE_BUCKET).getPublicUrl(path).data.publicUrl;
 }
 
-const PROFILE_COLUMNS = "id, handle, display_name, created_at, theme_color, bio, cover_url";
+const PROFILE_COLUMNS =
+  "id, handle, display_name, created_at, theme_color, bio, cover_url, pinned_post_id";
 
 function toProfile(row: {
   id: string;
@@ -26,6 +27,7 @@ function toProfile(row: {
   theme_color: string | null;
   bio: string | null;
   cover_url: string | null;
+  pinned_post_id: string | null;
 }): Profile {
   return {
     id: row.id,
@@ -35,6 +37,7 @@ function toProfile(row: {
     themeColor: row.theme_color,
     bio: row.bio,
     coverUrl: row.cover_url,
+    pinnedPostId: row.pinned_post_id,
   };
 }
 

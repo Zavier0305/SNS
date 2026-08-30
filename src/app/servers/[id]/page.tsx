@@ -19,7 +19,9 @@ import {
   kickMember,
   leaveServer,
   rejectJoinRequest,
+  setChannelLocked,
   setMemberRole,
+  updateServerTopic,
   type Channel,
   type JoinRequest,
   type Server,
@@ -48,6 +50,17 @@ export default function ServerPage() {
   const [newChannelName, setNewChannelName] = useState("");
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
   const [creatingInvite, setCreatingInvite] = useState(false);
+  const [memberFilter, setMemberFilter] = useState("");
+  const [newChannelLocked, setNewChannelLocked] = useState(false);
+  const [editingTopic, setEditingTopic] = useState(false);
+  const [topicDraft, setTopicDraft] = useState("");
+  const [savingTopic, setSavingTopic] = useState(false);
+
+  const filteredMembers = members.filter((m) => {
+    const q = memberFilter.trim().toLowerCase();
+    if (!q) return true;
+    return m.displayName.toLowerCase().includes(q) || m.handle.toLowerCase().includes(q);
+  });
 
   const isModerator = server?.myRole === "owner" || server?.myRole === "moderator";
   const isMember = !!server?.myRole;
@@ -109,11 +122,36 @@ export default function ServerPage() {
     e.preventDefault();
     if (!newChannelName.trim()) return;
     try {
-      await createChannel(params.id, newChannelName.trim());
+      await createChannel(params.id, newChannelName.trim(), newChannelLocked);
       setNewChannelName("");
+      setNewChannelLocked(false);
       refreshServer();
     } catch {
       showToast("チャンネル作成に失敗しました", "error");
+    }
+  }
+
+  async function handleToggleChannelLocked(channelId: string, locked: boolean) {
+    try {
+      await setChannelLocked(channelId, !locked);
+      refreshServer();
+    } catch {
+      showToast("操作に失敗しました", "error");
+    }
+  }
+
+  async function handleSaveTopic(e: FormEvent) {
+    e.preventDefault();
+    if (savingTopic) return;
+    setSavingTopic(true);
+    try {
+      await updateServerTopic(params.id, topicDraft);
+      setEditingTopic(false);
+      refreshServer();
+    } catch {
+      showToast("説明の更新に失敗しました", "error");
+    } finally {
+      setSavingTopic(false);
     }
   }
 
@@ -218,9 +256,43 @@ export default function ServerPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <h1 className="text-lg font-semibold">{server.name}</h1>
-                  {server.topic && (
+                  {editingTopic ? (
+                    <form onSubmit={handleSaveTopic} className="mt-1 flex gap-1.5">
+                      <input
+                        value={topicDraft}
+                        onChange={(e) => setTopicDraft(e.target.value)}
+                        maxLength={100}
+                        className="flex-1 rounded-md border border-black/10 dark:border-white/20 bg-transparent px-2 py-0.5 text-xs outline-none focus:border-black/30 dark:focus:border-white/40"
+                      />
+                      <button
+                        type="submit"
+                        disabled={savingTopic}
+                        className="text-xs text-blue-500 disabled:opacity-40"
+                      >
+                        保存
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditingTopic(false)}
+                        className="text-xs text-black/40 dark:text-white/40"
+                      >
+                        キャンセル
+                      </button>
+                    </form>
+                  ) : (
                     <p className="text-xs text-black/50 dark:text-white/50">
                       {server.topic}
+                      {server.myRole === "owner" && (
+                        <button
+                          onClick={() => {
+                            setTopicDraft(server.topic ?? "");
+                            setEditingTopic(true);
+                          }}
+                          className="ml-1.5 text-black/40 dark:text-white/40 hover:underline"
+                        >
+                          編集
+                        </button>
+                      )}
                     </p>
                   )}
                   <p className="text-[10px] text-black/40 dark:text-white/40">
@@ -266,7 +338,15 @@ export default function ServerPage() {
                 )}
                 <div>
                   <h3 className="text-xs font-semibold mb-1">メンバー</h3>
-                  {members.map((m) => (
+                  {members.length > 5 && (
+                    <input
+                      value={memberFilter}
+                      onChange={(e) => setMemberFilter(e.target.value)}
+                      placeholder="メンバーを検索"
+                      className="mb-1.5 w-full rounded-md border border-black/10 dark:border-white/20 bg-transparent px-2 py-1 text-xs outline-none focus:border-black/30 dark:focus:border-white/40"
+                    />
+                  )}
+                  {filteredMembers.map((m) => (
                     <div key={m.userId} className="flex items-center justify-between text-xs py-1">
                       <span>
                         {m.displayName} @{m.handle}{" "}
@@ -329,6 +409,9 @@ export default function ServerPage() {
                     }`}
                   >
                     #{c.name}
+                    {c.postsLocked && (
+                      <span aria-label="投稿制限中のチャンネル">🔒</span>
+                    )}
                     {activeChannelId !== c.id && isChannelUnread(c.id, c.lastPostAt) && (
                       <span
                         aria-label="未読の投稿があります"
@@ -337,18 +420,31 @@ export default function ServerPage() {
                     )}
                   </button>
                   {isModerator && (
-                    <button
-                      onClick={() => handleDeleteChannel(c.id)}
-                      aria-label={`#${c.name}を削除`}
-                      className="text-[10px] text-black/30 dark:text-white/30 hover:text-red-500 pr-1"
-                    >
-                      ×
-                    </button>
+                    <>
+                      <button
+                        onClick={() => handleToggleChannelLocked(c.id, c.postsLocked)}
+                        aria-label={
+                          c.postsLocked
+                            ? `#${c.name}の投稿制限を解除`
+                            : `#${c.name}をモデレーター限定にする`
+                        }
+                        className="text-[10px] text-black/30 dark:text-white/30 hover:text-black/60 dark:hover:text-white/60 pr-1"
+                      >
+                        {c.postsLocked ? "🔓" : "🔒"}
+                      </button>
+                      <button
+                        onClick={() => handleDeleteChannel(c.id)}
+                        aria-label={`#${c.name}を削除`}
+                        className="text-[10px] text-black/30 dark:text-white/30 hover:text-red-500 pr-1"
+                      >
+                        ×
+                      </button>
+                    </>
                   )}
                 </div>
               ))}
               {isModerator && (
-                <form onSubmit={handleCreateChannel} className="flex items-center px-2">
+                <form onSubmit={handleCreateChannel} className="flex items-center gap-1.5 px-2">
                   <input
                     value={newChannelName}
                     onChange={(e) => setNewChannelName(e.target.value)}
@@ -356,18 +452,38 @@ export default function ServerPage() {
                     maxLength={30}
                     className="w-20 text-xs bg-transparent outline-none border-b border-black/10 dark:border-white/20"
                   />
+                  <label className="flex items-center gap-0.5 text-[10px] text-black/50 dark:text-white/50 whitespace-nowrap">
+                    <input
+                      type="checkbox"
+                      checked={newChannelLocked}
+                      onChange={(e) => setNewChannelLocked(e.target.checked)}
+                    />
+                    限定
+                  </label>
                 </form>
               )}
             </div>
 
             {isMember && activeChannelId && (
-              <PostForm
-                authorId={profile.id}
-                channelId={activeChannelId}
-                onPosted={() =>
-                  fetchPostsByChannel(activeChannelId, profile.id).then(setPosts)
+              (() => {
+                const activeChannel = channels.find((c) => c.id === activeChannelId);
+                if (activeChannel?.postsLocked && !isModerator) {
+                  return (
+                    <p className="p-4 text-xs text-black/40 dark:text-white/40 border-b border-black/10 dark:border-white/10">
+                      このチャンネルはモデレーター以上のみ投稿できます。
+                    </p>
+                  );
                 }
-              />
+                return (
+                  <PostForm
+                    authorId={profile.id}
+                    channelId={activeChannelId}
+                    onPosted={() =>
+                      fetchPostsByChannel(activeChannelId, profile.id).then(setPosts)
+                    }
+                  />
+                );
+              })()
             )}
 
             {loadingPosts ? (
