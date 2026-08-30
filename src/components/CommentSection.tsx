@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { addComment, deleteComment, useComments } from "@/lib/comments-store";
 import { useToast } from "@/lib/toast-context";
 import { CommentLikeButton } from "@/components/CommentLikeButton";
+import { formatRelativeTime } from "@/lib/format-time";
 
 function formatTime(iso: string) {
   return new Date(iso).toLocaleString("ja-JP", {
@@ -27,6 +28,7 @@ export function CommentSection({
   const [content, setContent] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const { showToast } = useToast();
+  const inputRef = useRef<HTMLInputElement>(null);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -56,6 +58,12 @@ export function CommentSection({
     }
   }
 
+  function handleReply(handle: string) {
+    if (!handle) return;
+    setContent((prev) => (prev.startsWith(`@${handle} `) ? prev : `@${handle} ${prev}`));
+    inputRef.current?.focus();
+  }
+
   return (
     <div className="mt-2 pl-3 border-l-2 border-black/10 dark:border-white/10 flex flex-col gap-2">
       {loading ? (
@@ -65,8 +73,8 @@ export function CommentSection({
           <div key={comment.id} className="text-xs">
             <div className="flex items-center gap-1.5">
               <span className="font-semibold">{comment.authorDisplayName}</span>
-              <span className="text-black/40 dark:text-white/40">
-                {formatTime(comment.createdAt)}
+              <span className="text-black/40 dark:text-white/40" title={formatTime(comment.createdAt)}>
+                {formatRelativeTime(comment.createdAt)}
               </span>
               {comment.authorId === currentUserId && (
                 <button
@@ -78,8 +86,16 @@ export function CommentSection({
               )}
             </div>
             <p className="whitespace-pre-wrap break-words">{comment.content}</p>
-            <div className="mt-0.5 text-[11px]">
+            <div className="mt-0.5 flex items-center gap-2 text-[11px]">
               <CommentLikeButton commentId={comment.id} currentUserId={currentUserId} />
+              {currentUserId && comment.authorHandle && (
+                <button
+                  onClick={() => handleReply(comment.authorHandle)}
+                  className="text-black/40 dark:text-white/40 hover:underline"
+                >
+                  返信
+                </button>
+              )}
             </div>
           </div>
         ))
@@ -87,6 +103,7 @@ export function CommentSection({
       {currentUserId && (
         <form onSubmit={handleSubmit} className="flex gap-2">
           <input
+            ref={inputRef}
             value={content}
             onChange={(e) => setContent(e.target.value)}
             placeholder="コメントする"

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
@@ -8,6 +8,8 @@ import { useToast } from "@/lib/toast-context";
 import { toggleBlock, toggleMute } from "@/lib/posts-store";
 import { fetchBlockedProfiles, fetchMutedProfiles } from "@/lib/moderation-lists-store";
 import { fetchNotificationPrefs } from "@/lib/profiles-store";
+import { addMuteWord, fetchMuteWords, removeMuteWord } from "@/lib/mute-words-store";
+import { usePushNotifications } from "@/lib/push-notifications";
 import { Header } from "@/components/Header";
 import type { NotificationPrefs, Profile } from "@/lib/types";
 
@@ -18,7 +20,11 @@ export default function SettingsPage() {
   const [muted, setMuted] = useState<Profile[]>([]);
   const [blocked, setBlocked] = useState<Profile[]>([]);
   const [prefs, setPrefs] = useState<NotificationPrefs | null>(null);
+  const [muteWords, setMuteWords] = useState<string[]>([]);
+  const [newMuteWord, setNewMuteWord] = useState("");
   const [loading, setLoading] = useState(true);
+  const { supported: pushSupported, permission: pushPermission, requestPermission } =
+    usePushNotifications();
 
   useEffect(() => {
     if (checked && !profile) router.push("/login");
@@ -31,13 +37,37 @@ export default function SettingsPage() {
       fetchMutedProfiles(profile.id),
       fetchBlockedProfiles(profile.id),
       fetchNotificationPrefs(profile.id),
+      fetchMuteWords(profile.id),
     ])
-      .then(([m, b, p]) => {
+      .then(([m, b, p, mw]) => {
         setMuted(m);
         setBlocked(b);
         setPrefs(p);
+        setMuteWords(mw);
       })
       .finally(() => setLoading(false));
+  }
+
+  async function handleAddMuteWord(e: FormEvent) {
+    e.preventDefault();
+    if (!profile || !newMuteWord.trim()) return;
+    try {
+      await addMuteWord(profile.id, newMuteWord);
+      setNewMuteWord("");
+      refresh();
+    } catch {
+      showToast("追加に失敗しました", "error");
+    }
+  }
+
+  async function handleRemoveMuteWord(word: string) {
+    if (!profile) return;
+    try {
+      await removeMuteWord(profile.id, word);
+      refresh();
+    } catch {
+      showToast("削除に失敗しました", "error");
+    }
   }
 
   async function handlePrefChange(key: keyof NotificationPrefs, value: boolean) {
@@ -121,6 +151,67 @@ export default function SettingsPage() {
                     />
                     フォローされたら通知する
                   </label>
+                </div>
+              )}
+            </section>
+            {pushSupported && (
+              <section className="p-4 border-b border-black/10 dark:border-white/10">
+                <h2 className="text-sm font-semibold mb-2">ブラウザ通知</h2>
+                {pushPermission === "granted" ? (
+                  <p className="text-xs text-black/50 dark:text-white/50">
+                    有効です（タブを開いたまま他の作業をしていると通知が届きます）
+                  </p>
+                ) : pushPermission === "denied" ? (
+                  <p className="text-xs text-black/50 dark:text-white/50">
+                    ブラウザの設定で通知がブロックされています
+                  </p>
+                ) : (
+                  <button
+                    onClick={requestPermission}
+                    className="text-sm rounded-full border border-black/20 dark:border-white/20 px-3 py-1"
+                  >
+                    通知を許可する
+                  </button>
+                )}
+              </section>
+            )}
+            <section className="p-4 border-b border-black/10 dark:border-white/10">
+              <h2 className="text-sm font-semibold mb-2">ミュートワード</h2>
+              <form onSubmit={handleAddMuteWord} className="flex gap-2 mb-2">
+                <input
+                  value={newMuteWord}
+                  onChange={(e) => setNewMuteWord(e.target.value)}
+                  placeholder="非表示にしたいキーワード"
+                  maxLength={40}
+                  className="flex-1 rounded-md border border-black/10 dark:border-white/20 bg-transparent px-2 py-1 text-sm outline-none focus:border-black/30 dark:focus:border-white/40"
+                />
+                <button
+                  type="submit"
+                  disabled={!newMuteWord.trim()}
+                  className="text-sm rounded-full bg-foreground text-background px-3 disabled:opacity-40"
+                >
+                  追加
+                </button>
+              </form>
+              {muteWords.length === 0 ? (
+                <p className="text-xs text-black/50 dark:text-white/50">なし</p>
+              ) : (
+                <div className="flex flex-wrap gap-1.5">
+                  {muteWords.map((w) => (
+                    <span
+                      key={w}
+                      className="text-xs rounded-full bg-black/5 dark:bg-white/10 px-2 py-1 flex items-center gap-1"
+                    >
+                      {w}
+                      <button
+                        onClick={() => handleRemoveMuteWord(w)}
+                        aria-label={`${w}を削除`}
+                        className="text-black/40 dark:text-white/40 hover:text-red-500"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
                 </div>
               )}
             </section>

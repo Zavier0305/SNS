@@ -1,12 +1,18 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent, type MouseEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useFollowingIds } from "@/lib/posts-store";
 import { searchPosts } from "@/lib/discovery-store";
 import { searchProfiles } from "@/lib/profiles-store";
+import {
+  addSearchHistory,
+  clearSearchHistory,
+  getSearchHistory,
+  removeSearchHistoryItem,
+} from "@/lib/search-history";
 import { Header } from "@/components/Header";
 import { PostCard } from "@/components/PostCard";
 import type { Post, Profile } from "@/lib/types";
@@ -22,26 +28,47 @@ export default function SearchPage() {
   const [users, setUsers] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [history, setHistory] = useState<string[]>([]);
   const { followingIds } = useFollowingIds(profile?.id ?? null);
 
   useEffect(() => {
     if (checked && !profile) router.push("/login");
   }, [checked, profile, router]);
 
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    if (!query.trim()) return;
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setHistory(getSearchHistory());
+  }, []);
+
+  async function runSearch(q: string) {
+    if (!q.trim()) return;
     setLoading(true);
     setSearched(true);
     try {
       if (mode === "posts") {
-        setPosts(await searchPosts(query, profile?.id ?? null));
+        setPosts(await searchPosts(q, profile?.id ?? null));
       } else {
-        setUsers(await searchProfiles(query));
+        setUsers(await searchProfiles(q));
       }
+      setHistory(addSearchHistory(q));
     } finally {
       setLoading(false);
     }
+  }
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    await runSearch(query);
+  }
+
+  function handleHistoryClick(q: string) {
+    setQuery(q);
+    runSearch(q);
+  }
+
+  function handleRemoveHistory(e: MouseEvent, q: string) {
+    e.stopPropagation();
+    setHistory(removeSearchHistoryItem(q));
   }
 
   if (!checked || !profile) return null;
@@ -93,6 +120,40 @@ export default function SearchPage() {
             検索
           </button>
         </form>
+        {!searched && history.length > 0 && (
+          <div className="p-4 border-b border-black/10 dark:border-white/10">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-xs font-semibold text-black/50 dark:text-white/50">
+                最近の検索
+              </h2>
+              <button
+                onClick={() => setHistory(clearSearchHistory())}
+                className="text-xs text-black/40 dark:text-white/40 hover:underline"
+              >
+                すべて消去
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {history.map((q) => (
+                <button
+                  key={q}
+                  onClick={() => handleHistoryClick(q)}
+                  className="text-xs rounded-full bg-black/5 dark:bg-white/10 px-2 py-1 flex items-center gap-1"
+                >
+                  {q}
+                  <span
+                    onClick={(e) => handleRemoveHistory(e, q)}
+                    role="button"
+                    aria-label={`${q}を履歴から削除`}
+                    className="text-black/40 dark:text-white/40 hover:text-red-500"
+                  >
+                    ×
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         {loading ? (
           <p className="p-4 text-sm text-black/50 dark:text-white/50">読み込み中...</p>
         ) : searched && results.length === 0 ? (

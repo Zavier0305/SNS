@@ -22,25 +22,85 @@ export type Database = {
         Row: { blocked_user_id: string; created_at: string; user_id: string }
         Insert: { blocked_user_id: string; created_at?: string; user_id: string }
         Update: { blocked_user_id?: string; created_at?: string; user_id?: string }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "sns_blocks_blocked_user_id_fkey"
+            columns: ["blocked_user_id"]
+            isOneToOne: false
+            referencedRelation: "sns_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sns_blocks_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "sns_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sns_bookmarks: {
         Row: { created_at: string; post_id: string; user_id: string }
         Insert: { created_at?: string; post_id: string; user_id: string }
         Update: { created_at?: string; post_id?: string; user_id?: string }
-        Relationships: []
-      }
-      sns_comment_likes: {
-        Row: { comment_id: string; created_at: string; user_id: string }
-        Insert: { comment_id: string; created_at?: string; user_id: string }
-        Update: { comment_id?: string; created_at?: string; user_id?: string }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "sns_bookmarks_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "sns_feed"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sns_bookmarks_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "sns_posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sns_bookmarks_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "sns_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sns_channels: {
         Row: { created_at: string; id: string; name: string; server_id: string }
         Insert: { created_at?: string; id?: string; name: string; server_id: string }
         Update: { created_at?: string; id?: string; name?: string; server_id?: string }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "sns_channels_server_id_fkey"
+            columns: ["server_id"]
+            isOneToOne: false
+            referencedRelation: "sns_servers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sns_comment_likes: {
+        Row: { comment_id: string; created_at: string; user_id: string }
+        Insert: { comment_id: string; created_at?: string; user_id: string }
+        Update: { comment_id?: string; created_at?: string; user_id?: string }
+        Relationships: [
+          {
+            foreignKeyName: "sns_comment_likes_comment_id_fkey"
+            columns: ["comment_id"]
+            isOneToOne: false
+            referencedRelation: "sns_comments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sns_comment_likes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "sns_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sns_comments: {
         Row: {
@@ -76,6 +136,13 @@ export type Database = {
             foreignKeyName: "sns_comments_post_id_fkey"
             columns: ["post_id"]
             isOneToOne: false
+            referencedRelation: "sns_feed"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sns_comments_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
             referencedRelation: "sns_posts"
             referencedColumns: ["id"]
           },
@@ -85,46 +152,193 @@ export type Database = {
         Row: { created_at: string; followee_id: string; follower_id: string }
         Insert: { created_at?: string; followee_id: string; follower_id: string }
         Update: { created_at?: string; followee_id?: string; follower_id?: string }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "sns_follows_followee_id_fkey"
+            columns: ["followee_id"]
+            isOneToOne: false
+            referencedRelation: "sns_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sns_follows_follower_id_fkey"
+            columns: ["follower_id"]
+            isOneToOne: false
+            referencedRelation: "sns_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sns_likes: {
         Row: { created_at: string; post_id: string; user_id: string }
         Insert: { created_at?: string; post_id: string; user_id: string }
         Update: { created_at?: string; post_id?: string; user_id?: string }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "sns_likes_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "sns_feed"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sns_likes_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "sns_posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sns_likes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "sns_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sns_mute_words: {
+        Row: { created_at: string; user_id: string; word: string }
+        Insert: { created_at?: string; user_id: string; word: string }
+        Update: { created_at?: string; user_id?: string; word?: string }
+        Relationships: [
+          {
+            foreignKeyName: "sns_mute_words_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "sns_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sns_mutes: {
         Row: { created_at: string; muted_user_id: string; user_id: string }
         Insert: { created_at?: string; muted_user_id: string; user_id: string }
         Update: { created_at?: string; muted_user_id?: string; user_id?: string }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "sns_mutes_muted_user_id_fkey"
+            columns: ["muted_user_id"]
+            isOneToOne: false
+            referencedRelation: "sns_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sns_mutes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "sns_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
-      sns_poll_votes: {
+      sns_notifications: {
         Row: {
+          actor_id: string
           created_at: string
-          option_index: number
-          post_id: string
+          id: string
+          post_id: string | null
+          read_at: string | null
+          type: string
           user_id: string
         }
         Insert: {
+          actor_id: string
           created_at?: string
-          option_index: number
-          post_id: string
+          id?: string
+          post_id?: string | null
+          read_at?: string | null
+          type: string
           user_id: string
         }
         Update: {
+          actor_id?: string
           created_at?: string
-          option_index?: number
-          post_id?: string
+          id?: string
+          post_id?: string | null
+          read_at?: string | null
+          type?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "sns_notifications_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "sns_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sns_notifications_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "sns_feed"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sns_notifications_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "sns_posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sns_notifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "sns_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sns_poll_votes: {
+        Row: { created_at: string; option_index: number; post_id: string; user_id: string }
+        Insert: { created_at?: string; option_index: number; post_id: string; user_id: string }
+        Update: { created_at?: string; option_index?: number; post_id?: string; user_id?: string }
+        Relationships: [
+          {
+            foreignKeyName: "sns_poll_votes_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "sns_feed"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sns_poll_votes_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "sns_posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sns_poll_votes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "sns_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sns_post_hashtags: {
         Row: { post_id: string; tag: string }
         Insert: { post_id: string; tag: string }
         Update: { post_id?: string; tag?: string }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "sns_post_hashtags_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "sns_feed"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sns_post_hashtags_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "sns_posts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sns_posts: {
         Row: {
@@ -172,51 +386,36 @@ export type Database = {
           poll_options?: Json | null
           quoted_post_id?: string | null
         }
-        Relationships: []
-      }
-      sns_notifications: {
-        Row: {
-          actor_id: string
-          created_at: string
-          id: string
-          post_id: string | null
-          read_at: string | null
-          type: string
-          user_id: string
-        }
-        Insert: {
-          actor_id: string
-          created_at?: string
-          id?: string
-          post_id?: string | null
-          read_at?: string | null
-          type: string
-          user_id: string
-        }
-        Update: {
-          actor_id?: string
-          created_at?: string
-          id?: string
-          post_id?: string | null
-          read_at?: string | null
-          type?: string
-          user_id?: string
-        }
         Relationships: [
           {
-            foreignKeyName: "sns_notifications_actor_id_fkey"
-            columns: ["actor_id"]
+            foreignKeyName: "sns_posts_author_id_fkey"
+            columns: ["author_id"]
             isOneToOne: false
             referencedRelation: "sns_profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "sns_posts_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "sns_channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sns_posts_quoted_post_id_fkey"
+            columns: ["quoted_post_id"]
+            isOneToOne: false
+            referencedRelation: "sns_feed"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sns_posts_quoted_post_id_fkey"
+            columns: ["quoted_post_id"]
+            isOneToOne: false
+            referencedRelation: "sns_posts"
+            referencedColumns: ["id"]
+          },
         ]
-      }
-      sns_reactions: {
-        Row: { created_at: string; emoji: string; post_id: string; user_id: string }
-        Insert: { created_at?: string; emoji: string; post_id: string; user_id: string }
-        Update: { created_at?: string; emoji?: string; post_id?: string; user_id?: string }
-        Relationships: []
       }
       sns_profiles: {
         Row: {
@@ -251,6 +450,34 @@ export type Database = {
         }
         Relationships: []
       }
+      sns_reactions: {
+        Row: { created_at: string; emoji: string; post_id: string; user_id: string }
+        Insert: { created_at?: string; emoji: string; post_id: string; user_id: string }
+        Update: { created_at?: string; emoji?: string; post_id?: string; user_id?: string }
+        Relationships: [
+          {
+            foreignKeyName: "sns_reactions_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "sns_feed"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sns_reactions_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "sns_posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sns_reactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "sns_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sns_reports: {
         Row: {
           comment_id: string | null
@@ -276,13 +503,70 @@ export type Database = {
           reason?: string
           reporter_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "sns_reports_comment_id_fkey"
+            columns: ["comment_id"]
+            isOneToOne: false
+            referencedRelation: "sns_comments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sns_reports_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "sns_feed"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sns_reports_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "sns_posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sns_reports_reporter_id_fkey"
+            columns: ["reporter_id"]
+            isOneToOne: false
+            referencedRelation: "sns_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sns_server_invites: {
+        Row: { created_at: string; created_by: string; id: string; server_id: string; use_count: number }
+        Insert: { created_at?: string; created_by: string; id?: string; server_id: string; use_count?: number }
+        Update: { created_at?: string; created_by?: string; id?: string; server_id?: string; use_count?: number }
+        Relationships: [
+          {
+            foreignKeyName: "sns_server_invites_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "sns_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sns_server_invites_server_id_fkey"
+            columns: ["server_id"]
+            isOneToOne: false
+            referencedRelation: "sns_servers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sns_server_join_requests: {
         Row: { created_at: string; server_id: string; user_id: string }
         Insert: { created_at?: string; server_id: string; user_id: string }
         Update: { created_at?: string; server_id?: string; user_id?: string }
         Relationships: [
+          {
+            foreignKeyName: "sns_server_join_requests_server_id_fkey"
+            columns: ["server_id"]
+            isOneToOne: false
+            referencedRelation: "sns_servers"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "sns_server_join_requests_user_id_fkey"
             columns: ["user_id"]
@@ -298,6 +582,13 @@ export type Database = {
         Update: { joined_at?: string; role?: string; server_id?: string; user_id?: string }
         Relationships: [
           {
+            foreignKeyName: "sns_server_members_server_id_fkey"
+            columns: ["server_id"]
+            isOneToOne: false
+            referencedRelation: "sns_servers"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "sns_server_members_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
@@ -307,31 +598,18 @@ export type Database = {
         ]
       }
       sns_servers: {
-        Row: {
-          created_at: string
-          id: string
-          is_public: boolean
-          name: string
-          owner_id: string
-          topic: string | null
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          is_public?: boolean
-          name: string
-          owner_id: string
-          topic?: string | null
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          is_public?: boolean
-          name?: string
-          owner_id?: string
-          topic?: string | null
-        }
-        Relationships: []
+        Row: { created_at: string; id: string; is_public: boolean; name: string; owner_id: string; topic: string | null }
+        Insert: { created_at?: string; id?: string; is_public?: boolean; name: string; owner_id: string; topic?: string | null }
+        Update: { created_at?: string; id?: string; is_public?: boolean; name?: string; owner_id?: string; topic?: string | null }
+        Relationships: [
+          {
+            foreignKeyName: "sns_servers_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "sns_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
@@ -360,10 +638,31 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "sns_posts_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "sns_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sns_posts_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "sns_channels"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "sns_posts_quoted_post_id_fkey"
             columns: ["quoted_post_id"]
             isOneToOne: false
             referencedRelation: "sns_feed"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sns_posts_quoted_post_id_fkey"
+            columns: ["quoted_post_id"]
+            isOneToOne: false
+            referencedRelation: "sns_posts"
             referencedColumns: ["id"]
           },
         ]
@@ -379,7 +678,12 @@ export type Database = {
         Args: { p_server_id: string; p_user_id: string }
         Returns: undefined
       }
+      sns_create_server_invite: {
+        Args: { p_server_id: string }
+        Returns: string
+      }
       sns_join_server: { Args: { p_server_id: string }; Returns: undefined }
+      sns_join_via_invite: { Args: { p_invite_id: string }; Returns: string }
       sns_kick_member: {
         Args: { p_server_id: string; p_user_id: string }
         Returns: undefined

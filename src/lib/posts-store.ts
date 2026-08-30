@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { POST_IMAGE_BUCKET, supabase } from "@/lib/supabase/client";
+import { fetchMuteWords, postMatchesMuteWords } from "@/lib/mute-words-store";
 import type { Database } from "@/lib/database.types";
 import type { FeedKind, Post } from "@/lib/types";
 
@@ -132,16 +133,18 @@ async function fetchPosts(
   if (error || !data) return [];
 
   const postIds = data.map((row) => row.id).filter((id): id is string => !!id);
-  const [likedIds, pollVotes, hiddenAuthorIds] = userId
+  const [likedIds, pollVotes, hiddenAuthorIds, muteWords] = userId
     ? await Promise.all([
         fetchMyLikedPostIds(userId, postIds),
         fetchMyPollVotes(userId, postIds),
         fetchHiddenAuthorIds(userId),
+        fetchMuteWords(userId),
       ])
-    : [new Set<string>(), new Map<string, number>(), new Set<string>()];
+    : [new Set<string>(), new Map<string, number>(), new Set<string>(), [] as string[]];
 
   const posts = data
     .filter((row) => !row.author_id || !hiddenAuthorIds.has(row.author_id))
+    .filter((row) => !postMatchesMuteWords(row.content ?? "", muteWords))
     .map((row) =>
       toPost(
         row,

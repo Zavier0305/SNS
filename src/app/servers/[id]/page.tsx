@@ -8,6 +8,7 @@ import { fetchPostsByChannel } from "@/lib/posts-store";
 import {
   approveJoinRequest,
   createChannel,
+  createServerInvite,
   deleteChannel,
   deleteServer,
   fetchChannels,
@@ -44,6 +45,8 @@ export default function ServerPage() {
   const [members, setMembers] = useState<ServerMember[]>([]);
   const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([]);
   const [newChannelName, setNewChannelName] = useState("");
+  const [inviteUrl, setInviteUrl] = useState<string | null>(null);
+  const [creatingInvite, setCreatingInvite] = useState(false);
 
   const isModerator = server?.myRole === "owner" || server?.myRole === "moderator";
   const isMember = !!server?.myRole;
@@ -146,6 +149,26 @@ export default function ServerPage() {
       refreshManage();
     } catch {
       showToast("操作に失敗しました", "error");
+    }
+  }
+
+  async function handleCreateInvite() {
+    if (creatingInvite) return;
+    setCreatingInvite(true);
+    try {
+      const inviteId = await createServerInvite(params.id);
+      const url = `${window.location.origin}/servers/invite/${inviteId}`;
+      setInviteUrl(url);
+      try {
+        await navigator.clipboard.writeText(url);
+        showToast("招待リンクをコピーしました");
+      } catch {
+        showToast("招待リンクを作成しました");
+      }
+    } catch {
+      showToast("招待リンクの作成に失敗しました", "error");
+    } finally {
+      setCreatingInvite(false);
     }
   }
 
@@ -265,6 +288,21 @@ export default function ServerPage() {
                       )}
                     </div>
                   ))}
+                </div>
+                <div>
+                  <h3 className="text-xs font-semibold mb-1">招待リンク</h3>
+                  <button
+                    onClick={handleCreateInvite}
+                    disabled={creatingInvite}
+                    className="text-xs rounded-full border border-black/20 dark:border-white/20 px-2 py-1 disabled:opacity-40"
+                  >
+                    招待リンクを作成
+                  </button>
+                  {inviteUrl && (
+                    <p className="mt-1 text-[11px] break-all text-black/50 dark:text-white/50">
+                      {inviteUrl}
+                    </p>
+                  )}
                 </div>
                 {server.myRole === "owner" && (
                   <button

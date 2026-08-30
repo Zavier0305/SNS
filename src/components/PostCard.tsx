@@ -13,6 +13,8 @@ import { CommentSection } from "@/components/CommentSection";
 import { PollWidget } from "@/components/PollWidget";
 import { PostMenu } from "@/components/PostMenu";
 import { ReactionBar } from "@/components/ReactionBar";
+import { ImageLightbox } from "@/components/ImageLightbox";
+import { formatRelativeTime } from "@/lib/format-time";
 
 function formatTime(iso: string) {
   const date = new Date(iso);
@@ -100,6 +102,7 @@ export function PostCard({
   const [showComments, setShowComments] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [hidden, setHidden] = useState(false);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [editContent, setEditContent] = useState(post.content);
   const [content, setContentState] = useState(post.content);
@@ -247,9 +250,10 @@ export function PostCard({
           </span>
           <Link
             href={`/post/${post.id}`}
+            title={formatTime(post.createdAt)}
             className="text-xs text-black/50 dark:text-white/50 shrink-0 hover:underline"
           >
-            {formatTime(post.createdAt)}
+            {formatRelativeTime(post.createdAt)}
           </Link>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -367,7 +371,13 @@ export function PostCard({
           }`}
         >
           {post.imageUrls.map((url, i) => (
-            <div key={i} className="relative h-60 w-full">
+            <button
+              key={i}
+              type="button"
+              onClick={() => setLightboxUrl(url)}
+              className="relative h-60 w-full"
+              aria-label="画像を拡大表示"
+            >
               <Image
                 src={url}
                 alt={`${post.authorDisplayName}の投稿画像 ${i + 1}`}
@@ -376,9 +386,16 @@ export function PostCard({
                 sizes="(max-width: 640px) 100vw, 576px"
                 className="rounded-lg object-cover"
               />
-            </div>
+            </button>
           ))}
         </div>
+      )}
+      {lightboxUrl && (
+        <ImageLightbox
+          src={lightboxUrl}
+          alt={`${post.authorDisplayName}の投稿画像`}
+          onClose={() => setLightboxUrl(null)}
+        />
       )}
 
       {post.pollOptions && (

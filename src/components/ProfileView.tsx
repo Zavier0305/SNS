@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
 import {
+  deletePost,
   fetchBlockedIds,
   fetchMutedIds,
   fetchPostsByAuthor,
@@ -41,6 +42,9 @@ export function ProfileView({
   const [blocked, setBlocked] = useState(false);
   const [savingColor, setSavingColor] = useState(false);
   const [followCounts, setFollowCounts] = useState({ following: 0, followers: 0 });
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   const refresh = useMemo(
     () => () => {
@@ -150,6 +154,39 @@ export function ProfileView({
     }
   }
 
+  function toggleSelectMode() {
+    setSelectMode((prev) => !prev);
+    setSelectedIds(new Set());
+  }
+
+  function toggleSelected(postId: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(postId)) next.delete(postId);
+      else next.add(postId);
+      return next;
+    });
+  }
+
+  async function handleBulkDelete() {
+    if (!currentUserId || selectedIds.size === 0 || bulkDeleting) return;
+    if (!confirm(`選択した${selectedIds.size}件の投稿を削除しますか？`)) return;
+    setBulkDeleting(true);
+    try {
+      await Promise.all(
+        Array.from(selectedIds).map((id) => deletePost(id, currentUserId)),
+      );
+      showToast("削除しました");
+      setSelectMode(false);
+      setSelectedIds(new Set());
+      refresh();
+    } catch {
+      showToast("削除に失敗しました", "error");
+    } finally {
+      setBulkDeleting(false);
+    }
+  }
+
   return (
     <div>
       {displayedThemeColor && (
@@ -245,6 +282,25 @@ export function ProfileView({
         )}
       </div>
 
+      {isOwnProfile && posts.length > 0 && (
+        <div className="flex items-center justify-between px-4 py-2 border-b border-black/10 dark:border-white/10">
+          <button
+            onClick={toggleSelectMode}
+            className="text-xs text-blue-500 hover:underline"
+          >
+            {selectMode ? "キャンセル" : "選択"}
+          </button>
+          {selectMode && (
+            <button
+              onClick={handleBulkDelete}
+              disabled={selectedIds.size === 0 || bulkDeleting}
+              className="text-xs text-red-500 hover:underline disabled:opacity-40"
+            >
+              選択した{selectedIds.size}件を削除
+            </button>
+          )}
+        </div>
+      )}
       {loading ? (
         <p className="p-4 text-sm text-black/50 dark:text-white/50">読み込み中...</p>
       ) : posts.length === 0 ? (
@@ -253,13 +309,26 @@ export function ProfileView({
         </p>
       ) : (
         posts.map((post) => (
-          <PostCard
-            key={post.id}
-            post={post}
-            currentUserId={currentUserId}
-            isFollowing={following}
-            onDeleted={refresh}
-          />
+          <div key={post.id} className="flex items-start">
+            {selectMode && (
+              <label className="flex items-center pl-4 pt-4 shrink-0">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.has(post.id)}
+                  onChange={() => toggleSelected(post.id)}
+                  aria-label="投稿を選択"
+                />
+              </label>
+            )}
+            <div className="flex-1 min-w-0">
+              <PostCard
+                post={post}
+                currentUserId={currentUserId}
+                isFollowing={following}
+                onDeleted={refresh}
+              />
+            </div>
+          </div>
         ))
       )}
     </div>

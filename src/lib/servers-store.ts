@@ -216,6 +216,22 @@ export async function setMemberRole(
   if (error) throw error;
 }
 
+export async function createServerInvite(serverId: string): Promise<string> {
+  const { data, error } = await supabase.rpc("sns_create_server_invite", {
+    p_server_id: serverId,
+  });
+  if (error) throw error;
+  return data as string;
+}
+
+export async function joinViaInvite(inviteId: string): Promise<string> {
+  const { data, error } = await supabase.rpc("sns_join_via_invite", {
+    p_invite_id: inviteId,
+  });
+  if (error) throw error;
+  return data as string;
+}
+
 export async function togglePin(postId: string, pinned: boolean) {
   const { error } = await supabase
     .from("sns_posts")

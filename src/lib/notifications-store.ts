@@ -2,8 +2,16 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
+import { notifyBrowser } from "@/lib/push-notifications";
 
 export type NotificationType = "like" | "comment" | "follow" | "reaction";
+
+const NOTIFICATION_LABELS: Record<NotificationType, string> = {
+  like: "いいねされました",
+  comment: "コメントされました",
+  follow: "フォローされました",
+  reaction: "リアクションされました",
+};
 
 export type Notification = {
   id: string;
@@ -19,7 +27,9 @@ export type Notification = {
 export async function fetchNotifications(userId: string): Promise<Notification[]> {
   const { data } = await supabase
     .from("sns_notifications")
-    .select("id, actor_id, type, post_id, created_at, read_at, sns_profiles(handle, display_name)")
+    .select(
+      "id, actor_id, type, post_id, created_at, read_at, sns_profiles!sns_notifications_actor_id_fkey(handle, display_name)",
+    )
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
     .limit(100);
@@ -68,7 +78,11 @@ export function useUnreadNotificationCount(userId: string | null) {
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "sns_notifications", filter: `user_id=eq.${userId}` },
-        () => refresh(),
+        (payload) => {
+          refresh();
+          const type = payload.new.type as NotificationType;
+          notifyBrowser("SNS", NOTIFICATION_LABELS[type] ?? "新しい通知があります");
+        },
       )
       .subscribe();
     return () => {
