@@ -37,7 +37,7 @@ export function RightSidebar() {
                   >
                     {i + 1}
                   </span>
-                  <span className="text-accent-discord truncate flex-1">#{t.tag}</span>
+                  <span className="text-accent truncate flex-1">#{t.tag}</span>
                   <span className="shrink-0 text-xs text-black/40 dark:text-white/40">
                     {t.count}件
                   </span>
@@ -50,33 +50,33 @@ export function RightSidebar() {
       <div className="rounded-2xl border border-black/10 dark:border-white/10 p-4 flex flex-col gap-1 text-sm">
         <Link
           href="/explore"
-          className="flex items-center gap-2.5 rounded-xl px-2 py-1.5 hover:bg-accent-insta-2/10"
+          className="flex items-center gap-2.5 rounded-xl px-2 py-1.5 hover:bg-black/5 dark:hover:bg-white/10"
         >
-          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-accent-insta-2/15 text-accent-insta-2">
+          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-black/5 dark:bg-white/10 text-black/50 dark:text-white/50">
             <SparkleIcon className="h-4 w-4" />
           </span>
           発見
         </Link>
         <Link
           href="/servers"
-          className="flex items-center gap-2.5 rounded-xl px-2 py-1.5 hover:bg-accent-discord/10"
+          className="flex items-center gap-2.5 rounded-xl px-2 py-1.5 hover:bg-black/5 dark:hover:bg-white/10"
         >
-          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-accent-discord/15 text-accent-discord">
+          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-black/5 dark:bg-white/10 text-black/50 dark:text-white/50">
             <ServersIcon className="h-4 w-4" />
           </span>
           サーバー一覧
         </Link>
         <Link
           href="/battle"
-          className="flex items-center gap-2.5 rounded-xl px-2 py-1.5 hover:bg-accent-forum/10"
+          className="flex items-center gap-2.5 rounded-xl px-2 py-1.5 hover:bg-black/5 dark:hover:bg-white/10"
         >
-          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-accent-forum/15 text-accent-forum">
+          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-black/5 dark:bg-white/10 text-black/50 dark:text-white/50">
             <BattleIcon className="h-4 w-4" />
           </span>
           バトル履歴
         </Link>
         <Link
-          href="/admin"
+          href="/staff-k7v2q"
           className="flex items-center gap-2.5 rounded-xl px-2 py-1.5 hover:bg-black/5 dark:hover:bg-white/10"
         >
           <span className="flex h-7 w-7 items-center justify-center rounded-full bg-black/5 dark:bg-white/10 text-black/50 dark:text-white/50">

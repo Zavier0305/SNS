@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useNotificationCount } from "@/lib/notification-count-context";
+import { fetchMyServers, type Server } from "@/lib/servers-store";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Avatar } from "@/components/Avatar";
 import {
@@ -36,12 +37,20 @@ const DRAWER_ITEMS = [
   { href: "/settings", label: "設定", Icon: SettingsIcon },
 ] as const;
 
+const MAX_RAIL_SERVERS = 5;
+
 export function Sidebar() {
   const { profile, logout } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
   const { count } = useNotificationCount();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [myServers, setMyServers] = useState<Server[]>([]);
+
+  useEffect(() => {
+    if (!profile) return;
+    fetchMyServers(profile.id).then(setMyServers);
+  }, [profile]);
 
   if (!profile) return null;
 
@@ -59,7 +68,7 @@ export function Sidebar() {
         <Link
           href="/"
           title="SNS"
-          className="gradient-pill flex h-10 w-10 items-center justify-center text-lg font-bold hover:opacity-90 transition-opacity"
+          className="accent-pill flex h-10 w-10 items-center justify-center text-lg font-bold hover:opacity-90 transition-opacity"
         >
           S
         </Link>
@@ -76,24 +85,56 @@ export function Sidebar() {
                 aria-current={active ? "page" : undefined}
                 className={`relative flex h-11 w-11 items-center justify-center rounded-2xl transition-colors ${
                   active
-                    ? "bg-accent-discord text-white shadow-sm"
+                    ? "bg-accent text-white shadow-sm"
                     : "text-black/60 dark:text-white/60 hover:bg-black/5 dark:hover:bg-white/10"
                 }`}
               >
                 <item.Icon className="h-5 w-5" />
                 {item.badge && count > 0 && (
-                  <span className="absolute top-1 right-1 min-w-[16px] h-4 rounded-full bg-accent-kakao text-accent-kakao-ink text-[9px] font-bold flex items-center justify-center px-1">
+                  <span className="absolute top-1 right-1 min-w-[16px] h-4 rounded-full bg-accent text-white text-[9px] font-bold flex items-center justify-center px-1">
                     {count > 9 ? "9+" : count}
                   </span>
                 )}
               </Link>
             );
           })}
+        </nav>
+
+        {myServers.length > 0 && (
+          <>
+            <div
+              aria-hidden="true"
+              className="my-1.5 h-px w-8 bg-black/10 dark:bg-white/10"
+            />
+            <nav
+              className="flex flex-col items-center gap-1.5"
+              aria-label="参加中のサーバー"
+            >
+              {myServers.slice(0, MAX_RAIL_SERVERS).map((s) => {
+                const active = pathname === `/servers/${s.id}`;
+                return (
+                  <Link
+                    key={s.id}
+                    href={`/servers/${s.id}`}
+                    title={s.name}
+                    aria-label={s.name}
+                    aria-current={active ? "page" : undefined}
+                    className={`block rounded-full ${active ? "ring-2 ring-accent" : ""}`}
+                  >
+                    <Avatar name={s.name} handle={s.id} className="h-9 w-9 text-xs" />
+                  </Link>
+                );
+              })}
+            </nav>
+          </>
+        )}
+
+        <nav className="mt-1.5 flex flex-col items-center" aria-label="投稿する">
           <Link
             href={composeTarget}
             title="投稿する"
             aria-label="投稿する"
-            className="gradient-pill flex h-11 w-11 items-center justify-center hover:opacity-90 transition-opacity shadow-sm"
+            className="accent-pill flex h-11 w-11 items-center justify-center hover:opacity-90 transition-opacity shadow-sm"
           >
             <PlusIcon className="h-5 w-5" />
           </Link>
@@ -160,7 +201,7 @@ export function Sidebar() {
                     aria-current={active ? "page" : undefined}
                     className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] transition-colors ${
                       active
-                        ? "bg-accent-discord/10 text-accent-discord dark:text-accent-discord font-semibold"
+                        ? "bg-accent/10 text-accent font-semibold"
                         : "text-black/70 dark:text-white/70 hover:bg-black/5 dark:hover:bg-white/10"
                     }`}
                   >

@@ -28,7 +28,7 @@ export function Avatar({
   handle: string;
   avatarUrl?: string | null;
   className?: string;
-  /** Instagram-story-style gradient ring around the avatar */
+  /** accent-colored ring around the avatar */
   ring?: boolean;
 }) {
   const seed = handle || name || "?";
@@ -53,5 +53,5 @@ export function Avatar({
   );
 
   if (!ring) return inner;
-  return <span className="gradient-ring">{inner}</span>;
+  return <span className="accent-ring">{inner}</span>;
 }

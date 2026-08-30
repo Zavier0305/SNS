@@ -255,7 +255,7 @@ export function PostForm({
         placeholder="いまどうしてる？（Ctrl/Cmd+Enterで投稿）"
         rows={3}
         maxLength={MAX_CONTENT_LENGTH}
-        className="resize-none rounded-2xl border border-black/10 dark:border-white/20 bg-black/[0.02] dark:bg-white/[0.03] p-3 text-sm outline-none focus:border-accent-discord/50"
+        className="resize-none rounded-2xl border border-black/10 dark:border-white/20 bg-black/[0.02] dark:bg-white/[0.03] p-3 text-sm outline-none focus:border-accent/50"
       />
       <span
         className={`self-end text-[10px] ${
@@ -371,7 +371,7 @@ export function PostForm({
           <button
             type="submit"
             disabled={!content.trim() || submitting || cooldownSeconds > 0}
-            className="gradient-pill px-4 py-1.5 text-sm font-semibold disabled:opacity-40 transition active:scale-95"
+            className="accent-pill px-4 py-1.5 text-sm font-semibold disabled:opacity-40 transition active:scale-95"
           >
             {submitting ? "投稿中..." : "投稿する"}
           </button>

@@ -357,7 +357,7 @@ export default function SettingsPage() {
               <Link href="/reports" className="text-sm text-blue-500 hover:underline">
                 通報履歴を見る
               </Link>
-              <Link href="/admin" className="text-sm text-blue-500 hover:underline">
+              <Link href="/staff-k7v2q" className="text-sm text-blue-500 hover:underline">
                 管理ダッシュボードを見る
               </Link>
             </section>

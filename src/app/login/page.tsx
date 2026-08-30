@@ -44,10 +44,32 @@ export default function LoginPage() {
         className="w-full max-w-sm flex flex-col gap-4 rounded-lg border border-black/10 dark:border-white/10 p-6"
       >
         <div>
-          <h1 className="text-lg font-semibold">
-            {mode === "password" ? "パスワードでログイン" : "SNSをはじめる"}
-          </h1>
-          <p className="mt-1 text-xs text-black/50 dark:text-white/50">
+          <h1 className="text-lg font-semibold">SNSへようこそ</h1>
+          <div className="mt-3 grid grid-cols-2 gap-1 rounded-full border border-black/10 dark:border-white/15 p-1">
+            {(
+              [
+                { key: "new", label: "はじめる" },
+                { key: "password", label: "ログイン" },
+              ] as const
+            ).map((m) => (
+              <button
+                key={m.key}
+                type="button"
+                onClick={() => {
+                  setMode(m.key);
+                  setError(null);
+                }}
+                className={`rounded-full py-1.5 text-sm font-semibold transition-colors ${
+                  mode === m.key
+                    ? "bg-accent text-white"
+                    : "text-black/50 dark:text-white/50 hover:bg-black/5 dark:hover:bg-white/10"
+                }`}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
+          <p className="mt-3 text-xs text-black/50 dark:text-white/50">
             {mode === "password"
               ? "以前パスワードを設定した場合、ハンドル名とパスワードで同じアカウントに戻れます。"
               : "メールアドレスや電話番号は不要です。匿名アカウントが自動で発行されます。"}
@@ -87,16 +109,6 @@ export default function LoginPage() {
           className="rounded-full bg-foreground text-background px-4 py-2 text-sm font-medium disabled:opacity-40"
         >
           {submitting ? "準備中..." : mode === "password" ? "ログイン" : "はじめる"}
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setMode((m) => (m === "password" ? "new" : "password"));
-            setError(null);
-          }}
-          className="text-xs text-black/50 dark:text-white/50 hover:underline"
-        >
-          {mode === "password" ? "新規にはじめる" : "パスワードでログイン"}
         </button>
       </form>
     </main>

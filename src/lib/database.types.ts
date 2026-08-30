@@ -552,6 +552,7 @@ export type Database = {
           display_name: string
           handle: string
           id: string
+          is_admin: boolean
           notify_comments: boolean
           notify_follows: boolean
           notify_likes: boolean
@@ -566,6 +567,7 @@ export type Database = {
           display_name?: string
           handle: string
           id: string
+          is_admin?: boolean
           notify_comments?: boolean
           notify_follows?: boolean
           notify_likes?: boolean
@@ -580,6 +582,7 @@ export type Database = {
           display_name?: string
           handle?: string
           id?: string
+          is_admin?: boolean
           notify_comments?: boolean
           notify_follows?: boolean
           notify_likes?: boolean

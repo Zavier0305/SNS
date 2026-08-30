@@ -69,6 +69,11 @@ export async function fetchServers(viewerId: string | null): Promise<Server[]> {
   });
 }
 
+export async function fetchMyServers(viewerId: string): Promise<Server[]> {
+  const servers = await fetchServers(viewerId);
+  return servers.filter((s) => s.myRole !== null);
+}
+
 export async function fetchServer(
   serverId: string,
   viewerId: string | null,

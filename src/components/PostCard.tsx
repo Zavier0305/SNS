@@ -121,6 +121,7 @@ export function PostCard({
   canModerate,
   onPinChange,
   highlightWords,
+  index,
 }: {
   post: Post;
   currentUserId: string | null;
@@ -131,6 +132,8 @@ export function PostCard({
   canModerate?: boolean;
   onPinChange?: () => void;
   highlightWords?: string[];
+  /** position within the current list, rendered as a Chiebukuro-style numbered marker */
+  index?: number;
 }) {
   const [liked, setLiked] = useState(post.likedByMe);
   const [likeCount, setLikeCount] = useState(post.likeCount);
@@ -297,8 +300,15 @@ export function PostCard({
 
   return (
     <article className="mx-2 sm:mx-3 mb-3 overflow-hidden rounded-2xl border border-black/10 dark:border-white/10 bg-background shadow-sm">
-      <div aria-hidden="true" className="h-1" style={{ background: "var(--gradient-mashup)" }} />
       <div className="p-4 flex gap-3">
+        {index !== undefined && (
+          <span
+            aria-hidden="true"
+            className="shrink-0 mt-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-black/5 dark:bg-white/10 text-[10px] font-semibold text-black/50 dark:text-white/50"
+          >
+            {index + 1}
+          </span>
+        )}
         <Link href={`/u/${post.authorHandle}`} className="shrink-0 mt-0.5">
           <Avatar
             name={post.authorDisplayName}
@@ -349,7 +359,7 @@ export function PostCard({
               className={`text-xs rounded-full px-2 py-0.5 font-medium transition-colors ${
                 following
                   ? "border border-black/20 dark:border-white/20"
-                  : "gradient-pill"
+                  : "accent-pill"
               }`}
             >
               {following ? "フォロー中" : "フォロー"}
@@ -562,8 +572,8 @@ export function PostCard({
               aria-pressed={liked}
               className={`flex items-center justify-center h-8 w-8 rounded-full transition active:scale-75 ${
                 liked
-                  ? "bg-accent-kakao text-accent-kakao-ink"
-                  : "text-black/50 dark:text-white/50 hover:bg-accent-kakao/20 hover:text-accent-kakao-ink dark:hover:text-accent-kakao"
+                  ? "bg-accent text-white"
+                  : "text-black/50 dark:text-white/50 hover:bg-accent/15 hover:text-accent"
               }`}
             >
               <HeartIcon
@@ -588,7 +598,7 @@ export function PostCard({
             aria-expanded={showComments}
             className="flex items-center gap-1 text-xs font-medium text-black/60 dark:text-white/60 transition active:scale-90"
           >
-            <span className="flex items-center justify-center h-8 w-8 rounded-full hover:bg-accent-discord/10 hover:text-accent-discord transition-colors">
+            <span className="flex items-center justify-center h-8 w-8 rounded-full hover:bg-accent/10 hover:text-accent transition-colors">
               <CommentIcon className="h-[18px] w-[18px]" />
             </span>
             {commentCount > 0 && <span>{commentCount}</span>}
@@ -599,7 +609,7 @@ export function PostCard({
             <button
               onClick={() => onQuote(post)}
               aria-label="引用して投稿"
-              className="flex items-center justify-center h-7 w-7 rounded-full text-black/50 dark:text-white/50 hover:bg-accent-line/10 hover:text-accent-line transition active:scale-90"
+              className="flex items-center justify-center h-7 w-7 rounded-full text-black/50 dark:text-white/50 hover:bg-accent/10 hover:text-accent transition active:scale-90"
             >
               <RepostIcon className="h-4 w-4" />
             </button>
@@ -611,8 +621,8 @@ export function PostCard({
               aria-pressed={bookmarked}
               className={`flex items-center justify-center h-7 w-7 rounded-full transition active:scale-90 ${
                 bookmarked
-                  ? "text-accent-discord"
-                  : "text-black/50 dark:text-white/50 hover:bg-accent-discord/10 hover:text-accent-discord"
+                  ? "text-accent"
+                  : "text-black/50 dark:text-white/50 hover:bg-accent/10 hover:text-accent"
               }`}
             >
               {bookmarked ? (

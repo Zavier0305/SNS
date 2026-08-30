@@ -119,7 +119,7 @@ export default function Home() {
                 : "引っ張って更新"}
           </div>
         )}
-        <div className="p-3 flex items-center justify-between border-b border-black/10 dark:border-white/10">
+        <div className="p-3 flex items-center justify-between gap-2 border-b border-black/10 dark:border-white/10">
           <Link
             href="/search"
             className="flex items-center gap-1.5 text-sm text-black/60 dark:text-white/60 hover:underline"
@@ -127,13 +127,26 @@ export default function Home() {
             <SearchIcon className="h-4 w-4" />
             検索
           </Link>
-          <Link
-            href="/servers"
-            className="sm:hidden flex items-center gap-1.5 text-sm text-black/60 dark:text-white/60 hover:underline"
-          >
-            <ServersIcon className="h-4 w-4" />
-            サーバー
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/servers"
+              className="sm:hidden flex items-center gap-1.5 text-sm text-black/60 dark:text-white/60 hover:underline"
+            >
+              <ServersIcon className="h-4 w-4" />
+              サーバー
+            </Link>
+            <button
+              onClick={() => setFeed((f) => (f === "following" ? "recommended" : "following"))}
+              aria-pressed={feed === "following"}
+              className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                feed === "following"
+                  ? "bg-accent text-white"
+                  : "border border-black/15 dark:border-white/15 text-black/60 dark:text-white/60 hover:bg-black/5 dark:hover:bg-white/10"
+              }`}
+            >
+              {feed === "following" ? "フォロー中のみ表示 中" : "フォロー中のみ表示"}
+            </button>
+          </div>
         </div>
         {tags.length > 0 && (
           <div className="lg:hidden p-3 flex gap-2 overflow-x-auto border-b border-black/10 dark:border-white/10">
@@ -141,33 +154,13 @@ export default function Home() {
               <Link
                 key={t.tag}
                 href={`/tag/${t.tag}`}
-                className="gradient-pill text-xs font-medium shrink-0 px-2.5 py-1 hover:opacity-90"
+                className="shrink-0 rounded-full border border-black/15 dark:border-white/15 px-2.5 py-1 text-xs font-medium hover:bg-black/5 dark:hover:bg-white/10"
               >
                 #{t.tag} ({t.count})
               </Link>
             ))}
           </div>
         )}
-        <div className="flex gap-2 p-2 border-b border-black/10 dark:border-white/10">
-          {(
-            [
-              { key: "recommended", label: "おすすめ" },
-              { key: "following", label: "フォロー中" },
-            ] as const
-          ).map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setFeed(tab.key)}
-              className={`flex-1 rounded-full py-2 text-sm font-semibold transition-colors ${
-                feed === tab.key
-                  ? "bg-accent-discord text-white"
-                  : "text-black/50 dark:text-white/50 hover:bg-black/5 dark:hover:bg-white/10"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
         <div className="pt-3">
           <PostForm
             authorId={profile.id}
@@ -210,6 +203,7 @@ export default function Home() {
                   onFollowChange={handleFollowChange}
                   onDeleted={refresh}
                   onQuote={setQuotedPost}
+                  index={i}
                 />
               </div>
             );

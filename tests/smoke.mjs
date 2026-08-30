@@ -172,7 +172,7 @@ async function run() {
     "/profile",
     "/u/smoketest",
     "/settings",
-    "/admin",
+    "/staff-k7v2q",
     "/notifications",
     "/post/p1",
   ];
