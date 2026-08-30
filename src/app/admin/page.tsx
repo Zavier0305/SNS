@@ -24,17 +24,23 @@ async function countRows(
   return count ?? 0;
 }
 
+const ADMIN_HANDLES = (process.env.NEXT_PUBLIC_ADMIN_HANDLES ?? "")
+  .split(",")
+  .map((h) => h.trim().toLowerCase())
+  .filter(Boolean);
+
 export default function AdminPage() {
   const { profile, checked } = useAuth();
   const router = useRouter();
   const [stats, setStats] = useState<Stats | null>(null);
+  const isAdmin = !!profile && ADMIN_HANDLES.includes(profile.handle.toLowerCase());
 
   useEffect(() => {
     if (checked && !profile) router.push("/login");
   }, [checked, profile, router]);
 
   useEffect(() => {
-    if (!profile) return;
+    if (!profile || !isAdmin) return;
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
@@ -73,9 +79,22 @@ export default function AdminPage() {
         });
       },
     );
-  }, [profile]);
+  }, [profile, isAdmin]);
 
   if (!checked || !profile) return null;
+
+  if (!isAdmin) {
+    return (
+      <>
+        <Header />
+        <main className="flex-1 w-full max-w-xl mx-auto">
+          <p className="p-4 text-sm text-black/50 dark:text-white/50">
+            ページが見つかりません。
+          </p>
+        </main>
+      </>
+    );
+  }
 
   return (
     <>
