@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/lib/toast-context";
@@ -144,7 +145,7 @@ export default function SettingsPage() {
                 ))
               )}
             </section>
-            <section className="p-4">
+            <section className="p-4 border-b border-black/10 dark:border-white/10">
               <h2 className="text-sm font-semibold mb-2">ブロック中のユーザー</h2>
               {blocked.length === 0 ? (
                 <p className="text-xs text-black/50 dark:text-white/50">なし</p>
@@ -164,6 +165,11 @@ export default function SettingsPage() {
                   </div>
                 ))
               )}
+            </section>
+            <section className="p-4">
+              <Link href="/reports" className="text-sm text-blue-500 hover:underline">
+                通報履歴を見る
+              </Link>
             </section>
           </>
         )}

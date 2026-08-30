@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { addComment, deleteComment, useComments } from "@/lib/comments-store";
 import { useToast } from "@/lib/toast-context";
+import { CommentLikeButton } from "@/components/CommentLikeButton";
 
 function formatTime(iso: string) {
   return new Date(iso).toLocaleString("ja-JP", {
@@ -77,6 +78,9 @@ export function CommentSection({
               )}
             </div>
             <p className="whitespace-pre-wrap break-words">{comment.content}</p>
+            <div className="mt-0.5 text-[11px]">
+              <CommentLikeButton commentId={comment.id} currentUserId={currentUserId} />
+            </div>
           </div>
         ))
       )}

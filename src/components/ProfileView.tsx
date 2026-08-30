@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
+import Link from "next/link";
 import {
   fetchBlockedIds,
   fetchMutedIds,
@@ -9,6 +10,7 @@ import {
   toggleFollow,
   toggleMute,
 } from "@/lib/posts-store";
+import { fetchFollowCounts } from "@/lib/follows-store";
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/lib/toast-context";
 import { PostCard } from "@/components/PostCard";
@@ -38,6 +40,7 @@ export function ProfileView({
   const [muted, setMuted] = useState(false);
   const [blocked, setBlocked] = useState(false);
   const [savingColor, setSavingColor] = useState(false);
+  const [followCounts, setFollowCounts] = useState({ following: 0, followers: 0 });
 
   const refresh = useMemo(
     () => () => {
@@ -63,6 +66,10 @@ export function ProfileView({
       },
     );
   }, [currentUserId, isOwnProfile, profile.id]);
+
+  useEffect(() => {
+    fetchFollowCounts(profile.id).then(setFollowCounts);
+  }, [profile.id, following]);
 
   const stats = useMemo(
     () => ({
@@ -194,6 +201,16 @@ export function ProfileView({
           <span>投稿 {stats.postCount}</span>
           <span>累計いいね {stats.totalLikes}</span>
           <span>🏆殿堂入り {stats.preservedCount}</span>
+        </div>
+        <div className="mt-1.5 flex gap-4 text-xs">
+          <Link href={`/u/${profile.handle}/follows/following`} className="hover:underline">
+            <span className="font-semibold">{followCounts.following}</span>{" "}
+            <span className="text-black/50 dark:text-white/50">フォロー中</span>
+          </Link>
+          <Link href={`/u/${profile.handle}/follows/followers`} className="hover:underline">
+            <span className="font-semibold">{followCounts.followers}</span>{" "}
+            <span className="text-black/50 dark:text-white/50">フォロワー</span>
+          </Link>
         </div>
 
         {isOwnProfile && (

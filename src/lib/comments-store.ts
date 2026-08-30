@@ -58,3 +58,36 @@ export async function deleteComment(commentId: string, authorId: string) {
     .eq("author_id", authorId);
   if (error) throw error;
 }
+
+export async function fetchCommentLikeInfo(
+  commentId: string,
+  userId: string | null,
+): Promise<{ count: number; likedByMe: boolean }> {
+  const { data } = await supabase
+    .from("sns_comment_likes")
+    .select("user_id")
+    .eq("comment_id", commentId);
+  const rows = data ?? [];
+  return {
+    count: rows.length,
+    likedByMe: userId ? rows.some((r) => r.user_id === userId) : false,
+  };
+}
+
+export async function toggleCommentLike(
+  commentId: string,
+  userId: string,
+  liked: boolean,
+) {
+  if (liked) {
+    await supabase
+      .from("sns_comment_likes")
+      .delete()
+      .eq("comment_id", commentId)
+      .eq("user_id", userId);
+  } else {
+    await supabase
+      .from("sns_comment_likes")
+      .insert({ comment_id: commentId, user_id: userId });
+  }
+}

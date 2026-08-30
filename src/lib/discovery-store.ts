@@ -40,6 +40,20 @@ export async function searchPosts(
   return fetchPostsByIds(postIds, viewerId);
 }
 
+export async function fetchPreservedPosts(viewerId: string | null): Promise<Post[]> {
+  const { data } = await supabase
+    .from("sns_feed")
+    .select("id")
+    .eq("is_preserved", true)
+    .is("channel_id", null)
+    .order("created_at", { ascending: false })
+    .limit(30);
+  const postIds = (data ?? [])
+    .map((row) => row.id)
+    .filter((id): id is string => !!id);
+  return fetchPostsByIds(postIds, viewerId);
+}
+
 export function useTrendingTags() {
   const [tags, setTags] = useState<{ tag: string; count: number }[]>([]);
 

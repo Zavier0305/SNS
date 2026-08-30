@@ -149,6 +149,24 @@ export function PostCard({
     }
   }
 
+  async function handleShare() {
+    const url = `${window.location.origin}/post/${post.id}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ url, text: post.content });
+      } catch {
+        // user cancelled the share sheet; nothing to do
+      }
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      showToast("リンクをコピーしました");
+    } catch {
+      showToast("コピーに失敗しました", "error");
+    }
+  }
+
   async function handleSaveEdit() {
     if (!currentUserId || !editContent.trim() || saving) return;
     setSaving(true);
@@ -428,6 +446,13 @@ export function PostCard({
             <span aria-hidden="true">{bookmarked ? "🔖" : "📑"}</span>
           </button>
         )}
+        <button
+          onClick={handleShare}
+          aria-label="共有する"
+          className="flex items-center gap-1 text-xs text-black/50 dark:text-white/50"
+        >
+          <span aria-hidden="true">↗️</span>
+        </button>
       </div>
       <ReactionBar postId={post.id} currentUserId={currentUserId} />
       {showComments && (

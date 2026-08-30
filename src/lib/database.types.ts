@@ -30,6 +30,12 @@ export type Database = {
         Update: { created_at?: string; post_id?: string; user_id?: string }
         Relationships: []
       }
+      sns_comment_likes: {
+        Row: { comment_id: string; created_at: string; user_id: string }
+        Insert: { comment_id: string; created_at?: string; user_id: string }
+        Update: { comment_id?: string; created_at?: string; user_id?: string }
+        Relationships: []
+      }
       sns_channels: {
         Row: { created_at: string; id: string; name: string; server_id: string }
         Insert: { created_at?: string; id?: string; name: string; server_id: string }

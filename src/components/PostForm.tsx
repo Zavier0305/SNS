@@ -7,6 +7,8 @@ import type { Post } from "@/lib/types";
 
 const MAX_POLL_OPTIONS = 4;
 const MAX_CONTENT_LENGTH = 280;
+const RATE_LIMIT_COUNT = 3;
+const RATE_LIMIT_WINDOW_MS = 60_000;
 
 type ImageEntry = { file: File; previewUrl: string };
 
@@ -28,8 +30,43 @@ export function PostForm({
   const [images, setImages] = useState<ImageEntry[]>([]);
   const [pollOptions, setPollOptions] = useState<string[] | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [cooldownSeconds, setCooldownSeconds] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { showToast } = useToast();
+  const rateLimitKey = `sns.postTimestamps.${authorId}`;
+
+  function recordPostTimestamp() {
+    const now = Date.now();
+    const recent = getRecentTimestamps().filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
+    recent.push(now);
+    localStorage.setItem(rateLimitKey, JSON.stringify(recent));
+  }
+
+  function getRecentTimestamps(): number[] {
+    try {
+      const raw = localStorage.getItem(rateLimitKey);
+      return raw ? (JSON.parse(raw) as number[]) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  useEffect(() => {
+    const tick = () => {
+      const now = Date.now();
+      const recent = getRecentTimestamps().filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
+      if (recent.length >= RATE_LIMIT_COUNT) {
+        const oldest = Math.min(...recent);
+        setCooldownSeconds(Math.ceil((RATE_LIMIT_WINDOW_MS - (now - oldest)) / 1000));
+      } else {
+        setCooldownSeconds(0);
+      }
+    };
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authorId]);
 
   useEffect(() => {
     if (quotedPost) return;
@@ -108,6 +145,7 @@ export function PostForm({
           channelId: channelId ?? null,
         },
       );
+      recordPostTimestamp();
       setContent("");
       localStorage.removeItem(draftKey);
       clearImages();
@@ -237,13 +275,20 @@ export function PostForm({
             </button>
           )}
         </div>
-        <button
-          type="submit"
-          disabled={!content.trim() || submitting}
-          className="rounded-full bg-foreground text-background px-4 py-1.5 text-sm font-medium disabled:opacity-40"
-        >
-          {submitting ? "投稿中..." : "投稿する"}
-        </button>
+        <div className="flex items-center gap-2">
+          {cooldownSeconds > 0 && (
+            <span className="text-[10px] text-black/40 dark:text-white/40">
+              あと{cooldownSeconds}秒で投稿できます
+            </span>
+          )}
+          <button
+            type="submit"
+            disabled={!content.trim() || submitting || cooldownSeconds > 0}
+            className="rounded-full bg-foreground text-background px-4 py-1.5 text-sm font-medium disabled:opacity-40"
+          >
+            {submitting ? "投稿中..." : "投稿する"}
+          </button>
+        </div>
       </div>
     </form>
   );

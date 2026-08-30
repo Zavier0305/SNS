@@ -9,6 +9,7 @@ import { useTrendingTags } from "@/lib/discovery-store";
 import { Header } from "@/components/Header";
 import { PostForm } from "@/components/PostForm";
 import { PostCard } from "@/components/PostCard";
+import { PostListSkeleton } from "@/components/PostCardSkeleton";
 import type { FeedKind, Post } from "@/lib/types";
 
 function dateLabel(iso: string): string {
@@ -119,9 +120,7 @@ export default function Home() {
           </button>
         )}
         {loading ? (
-          <p className="p-4 text-sm text-black/50 dark:text-white/50">
-            読み込み中...
-          </p>
+          <PostListSkeleton />
         ) : posts.length === 0 ? (
           <p className="p-4 text-sm text-black/50 dark:text-white/50">
             {feed === "following"
