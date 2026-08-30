@@ -81,6 +81,16 @@ export function useUnreadNotificationCount(userId: string | null) {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     refresh();
     if (!userId) return;
+    // supabase-js dedupes channels by topic, so a second hook instance for the
+    // same user (e.g. this hook mounted in both the Header badge and a page)
+    // would otherwise try to bind postgres_changes on an already-subscribed
+    // channel, which throws. Skip creating a redundant subscription if one is
+    // already active; the existing instance's refresh() keeps the count fresh.
+    const topic = `realtime:sns_notifications_${userId}`;
+    const alreadyActive = supabase
+      .getChannels()
+      .some((c) => c.topic === topic && c.state !== "closed");
+    if (alreadyActive) return;
     const channel = supabase
       .channel(`sns_notifications_${userId}`)
       .on(
