@@ -25,6 +25,7 @@ import {
   type Server,
   type ServerMember,
 } from "@/lib/servers-store";
+import { isChannelUnread, markChannelRead } from "@/lib/channel-read-tracking";
 import { Header } from "@/components/Header";
 import { PostForm } from "@/components/PostForm";
 import { PostCard } from "@/components/PostCard";
@@ -75,6 +76,7 @@ export default function ServerPage() {
     fetchPostsByChannel(activeChannelId, profile?.id ?? null)
       .then(setPosts)
       .finally(() => setLoadingPosts(false));
+    markChannelRead(activeChannelId);
   }, [activeChannelId, profile?.id]);
 
   function refreshManage() {
@@ -320,13 +322,19 @@ export default function ServerPage() {
                 <div key={c.id} className="flex items-center shrink-0">
                   <button
                     onClick={() => setActiveChannelId(c.id)}
-                    className={`px-3 py-2 text-sm ${
+                    className={`flex items-center gap-1 px-3 py-2 text-sm ${
                       activeChannelId === c.id
                         ? "border-b-2 border-foreground font-medium"
                         : "text-black/50 dark:text-white/50"
                     }`}
                   >
                     #{c.name}
+                    {activeChannelId !== c.id && isChannelUnread(c.id, c.lastPostAt) && (
+                      <span
+                        aria-label="未読の投稿があります"
+                        className="h-1.5 w-1.5 rounded-full bg-blue-500"
+                      />
+                    )}
                   </button>
                   {isModerator && (
                     <button

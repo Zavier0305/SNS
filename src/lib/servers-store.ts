@@ -20,6 +20,7 @@ export type Channel = {
   serverId: string;
   name: string;
   createdAt: string;
+  lastPostAt: string | null;
 };
 
 export type ServerMember = {
@@ -128,11 +129,27 @@ export async function fetchChannels(serverId: string): Promise<Channel[]> {
     .select("*")
     .eq("server_id", serverId)
     .order("created_at", { ascending: true });
-  return (data ?? []).map((c) => ({
+  const channels = data ?? [];
+  const channelIds = channels.map((c) => c.id);
+  const lastPostAt = new Map<string, string>();
+  if (channelIds.length > 0) {
+    const { data: posts } = await supabase
+      .from("sns_posts")
+      .select("channel_id, created_at")
+      .in("channel_id", channelIds)
+      .order("created_at", { ascending: false });
+    for (const row of posts ?? []) {
+      if (row.channel_id && !lastPostAt.has(row.channel_id)) {
+        lastPostAt.set(row.channel_id, row.created_at);
+      }
+    }
+  }
+  return channels.map((c) => ({
     id: c.id,
     serverId: c.server_id,
     name: c.name,
     createdAt: c.created_at,
+    lastPostAt: lastPostAt.get(c.id) ?? null,
   }));
 }
 

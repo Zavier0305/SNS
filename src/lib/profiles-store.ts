@@ -1,9 +1,22 @@
 "use client";
 
-import { supabase } from "@/lib/supabase/client";
+import { POST_IMAGE_BUCKET, supabase } from "@/lib/supabase/client";
 import type { NotificationPrefs, Profile } from "@/lib/types";
 
-const PROFILE_COLUMNS = "id, handle, display_name, created_at, theme_color";
+export const MAX_COVER_IMAGE_BYTES = 5 * 1024 * 1024;
+
+export async function uploadCoverImage(userId: string, file: File): Promise<string> {
+  if (file.size > MAX_COVER_IMAGE_BYTES) {
+    throw new Error("画像は5MB以下にしてください");
+  }
+  const ext = file.name.split(".").pop() ?? "jpg";
+  const path = `covers/${userId}/${crypto.randomUUID()}.${ext}`;
+  const { error } = await supabase.storage.from(POST_IMAGE_BUCKET).upload(path, file);
+  if (error) throw error;
+  return supabase.storage.from(POST_IMAGE_BUCKET).getPublicUrl(path).data.publicUrl;
+}
+
+const PROFILE_COLUMNS = "id, handle, display_name, created_at, theme_color, bio, cover_url";
 
 function toProfile(row: {
   id: string;
@@ -11,6 +24,8 @@ function toProfile(row: {
   display_name: string;
   created_at: string;
   theme_color: string | null;
+  bio: string | null;
+  cover_url: string | null;
 }): Profile {
   return {
     id: row.id,
@@ -18,6 +33,8 @@ function toProfile(row: {
     displayName: row.display_name,
     createdAt: row.created_at,
     themeColor: row.theme_color,
+    bio: row.bio,
+    coverUrl: row.cover_url,
   };
 }
 

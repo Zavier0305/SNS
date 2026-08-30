@@ -14,7 +14,7 @@ import { Header } from "@/components/Header";
 import type { NotificationPrefs, Profile } from "@/lib/types";
 
 export default function SettingsPage() {
-  const { profile, checked, updateNotificationPrefs } = useAuth();
+  const { profile, checked, updateNotificationPrefs, deleteAccount } = useAuth();
   const router = useRouter();
   const { showToast } = useToast();
   const [muted, setMuted] = useState<Profile[]>([]);
@@ -23,6 +23,7 @@ export default function SettingsPage() {
   const [muteWords, setMuteWords] = useState<string[]>([]);
   const [newMuteWord, setNewMuteWord] = useState("");
   const [loading, setLoading] = useState(true);
+  const [deletingAccount, setDeletingAccount] = useState(false);
   const { supported: pushSupported, permission: pushPermission, requestPermission } =
     usePushNotifications();
 
@@ -107,6 +108,22 @@ export default function SettingsPage() {
       refresh();
     } catch {
       showToast("操作に失敗しました", "error");
+    }
+  }
+
+  async function handleDeleteAccount() {
+    if (deletingAccount) return;
+    if (!confirm("アカウントを削除しますか？投稿・コメント・フォローなど全てのデータが失われ、元に戻せません。")) {
+      return;
+    }
+    if (!confirm("本当によろしいですか？この操作は取り消せません。")) return;
+    setDeletingAccount(true);
+    try {
+      await deleteAccount();
+      router.push("/login");
+    } catch {
+      showToast("アカウントの削除に失敗しました", "error");
+      setDeletingAccount(false);
     }
   }
 
@@ -257,10 +274,20 @@ export default function SettingsPage() {
                 ))
               )}
             </section>
-            <section className="p-4">
+            <section className="p-4 border-b border-black/10 dark:border-white/10">
               <Link href="/reports" className="text-sm text-blue-500 hover:underline">
                 通報履歴を見る
               </Link>
+            </section>
+            <section className="p-4">
+              <h2 className="text-sm font-semibold mb-2 text-red-500">危険な操作</h2>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={deletingAccount}
+                className="text-sm rounded-full border border-red-500 text-red-500 px-3 py-1 disabled:opacity-40"
+              >
+                {deletingAccount ? "削除中..." : "アカウントを削除する"}
+              </button>
             </section>
           </>
         )}

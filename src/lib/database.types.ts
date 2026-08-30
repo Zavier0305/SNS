@@ -353,6 +353,7 @@ export type Database = {
           is_hidden: boolean
           is_pinned: boolean
           is_preserved: boolean
+          is_sensitive: boolean
           poll_options: Json | null
           quoted_post_id: string | null
         }
@@ -368,6 +369,7 @@ export type Database = {
           is_hidden?: boolean
           is_pinned?: boolean
           is_preserved?: boolean
+          is_sensitive?: boolean
           poll_options?: Json | null
           quoted_post_id?: string | null
         }
@@ -383,6 +385,7 @@ export type Database = {
           is_hidden?: boolean
           is_pinned?: boolean
           is_preserved?: boolean
+          is_sensitive?: boolean
           poll_options?: Json | null
           quoted_post_id?: string | null
         }
@@ -419,6 +422,8 @@ export type Database = {
       }
       sns_profiles: {
         Row: {
+          bio: string | null
+          cover_url: string | null
           created_at: string
           display_name: string
           handle: string
@@ -429,6 +434,8 @@ export type Database = {
           theme_color: string | null
         }
         Insert: {
+          bio?: string | null
+          cover_url?: string | null
           created_at?: string
           display_name?: string
           handle: string
@@ -439,6 +446,8 @@ export type Database = {
           theme_color?: string | null
         }
         Update: {
+          bio?: string | null
+          cover_url?: string | null
           created_at?: string
           display_name?: string
           handle?: string
@@ -629,6 +638,7 @@ export type Database = {
           is_hidden: boolean | null
           is_pinned: boolean | null
           is_preserved: boolean | null
+          is_sensitive: boolean | null
           like_count: number | null
           poll_options: Json | null
           quoted_author_display_name: string | null
@@ -682,6 +692,7 @@ export type Database = {
         Args: { p_server_id: string }
         Returns: string
       }
+      sns_delete_account: { Args: never; Returns: undefined }
       sns_join_server: { Args: { p_server_id: string }; Returns: undefined }
       sns_join_via_invite: { Args: { p_invite_id: string }; Returns: string }
       sns_kick_member: {

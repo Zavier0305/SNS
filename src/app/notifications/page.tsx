@@ -7,6 +7,8 @@ import { useAuth } from "@/lib/auth-context";
 import {
   fetchNotifications,
   markAllNotificationsRead,
+  markNotificationRead,
+  useUnreadNotificationCount,
   type Notification,
 } from "@/lib/notifications-store";
 import { Header } from "@/components/Header";
@@ -32,6 +34,7 @@ export default function NotificationsPage() {
   const router = useRouter();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
+  const { refresh: refreshUnreadCount } = useUnreadNotificationCount(profile?.id ?? null);
 
   useEffect(() => {
     if (checked && !profile) router.push("/login");
@@ -42,18 +45,44 @@ export default function NotificationsPage() {
     fetchNotifications(profile.id)
       .then(setNotifications)
       .finally(() => setLoading(false));
-    markAllNotificationsRead(profile.id);
   }, [profile]);
 
+  async function handleMarkRead(id: string) {
+    setNotifications((current) =>
+      current.map((n) => (n.id === id ? { ...n, readAt: n.readAt ?? new Date().toISOString() } : n)),
+    );
+    await markNotificationRead(id);
+    refreshUnreadCount();
+  }
+
+  async function handleMarkAllRead() {
+    if (!profile) return;
+    setNotifications((current) =>
+      current.map((n) => ({ ...n, readAt: n.readAt ?? new Date().toISOString() })),
+    );
+    await markAllNotificationsRead(profile.id);
+    refreshUnreadCount();
+  }
+
   if (!checked || !profile) return null;
+
+  const hasUnread = notifications.some((n) => !n.readAt);
 
   return (
     <>
       <Header />
       <main className="flex-1 w-full max-w-xl mx-auto">
-        <h1 className="p-4 text-lg font-semibold border-b border-black/10 dark:border-white/10">
-          通知
-        </h1>
+        <div className="flex items-center justify-between p-4 border-b border-black/10 dark:border-white/10">
+          <h1 className="text-lg font-semibold">通知</h1>
+          {hasUnread && (
+            <button
+              onClick={handleMarkAllRead}
+              className="text-xs text-blue-500 hover:underline"
+            >
+              すべて既読にする
+            </button>
+          )}
+        </div>
         {loading ? (
           <p className="p-4 text-sm text-black/50 dark:text-white/50">読み込み中...</p>
         ) : notifications.length === 0 ? (
@@ -64,14 +93,22 @@ export default function NotificationsPage() {
           notifications.map((n) => (
             <div
               key={n.id}
+              onClick={() => !n.readAt && handleMarkRead(n.id)}
               className={`p-4 border-b border-black/10 dark:border-white/10 text-sm ${
-                !n.readAt ? "bg-blue-50/50 dark:bg-blue-900/10" : ""
+                !n.readAt ? "bg-blue-50/50 dark:bg-blue-900/10 cursor-pointer" : ""
               }`}
             >
-              <Link href={`/u/${n.actorHandle}`} className="font-semibold hover:underline">
+              <Link
+                href={`/u/${n.actorHandle}`}
+                onClick={(e) => e.stopPropagation()}
+                className="font-semibold hover:underline"
+              >
                 {n.actorDisplayName}
               </Link>
               <span>{LABELS[n.type]}</span>
+              {!n.readAt && (
+                <span className="ml-2 inline-block h-1.5 w-1.5 rounded-full bg-blue-500 align-middle" />
+              )}
               <p className="text-xs text-black/40 dark:text-white/40 mt-0.5">
                 {formatTime(n.createdAt)}
               </p>

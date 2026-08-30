@@ -18,6 +18,9 @@ type AuthContextValue = {
   updateNickname: (nickname: string) => Promise<void>;
   updateThemeColor: (color: string | null) => Promise<void>;
   updateNotificationPrefs: (prefs: NotificationPrefs) => Promise<void>;
+  updateBio: (bio: string) => Promise<void>;
+  updateCoverUrl: (coverUrl: string | null) => Promise<void>;
+  deleteAccount: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -28,6 +31,8 @@ function toProfile(row: {
   display_name: string;
   created_at: string;
   theme_color: string | null;
+  bio: string | null;
+  cover_url: string | null;
 }): Profile {
   return {
     id: row.id,
@@ -35,13 +40,15 @@ function toProfile(row: {
     displayName: row.display_name,
     createdAt: row.created_at,
     themeColor: row.theme_color,
+    bio: row.bio,
+    coverUrl: row.cover_url,
   };
 }
 
 async function fetchProfile(userId: string): Promise<Profile | null> {
   const { data } = await supabase
     .from("sns_profiles")
-    .select("id, handle, display_name, created_at, theme_color")
+    .select("id, handle, display_name, created_at, theme_color, bio, cover_url")
     .eq("id", userId)
     .single();
   return data ? toProfile(data) : null;
@@ -139,6 +146,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
   }
 
+  async function updateBio(bio: string) {
+    if (!profile) throw new Error("ログインしていません");
+    const trimmed = bio.trim();
+    const { error } = await supabase
+      .from("sns_profiles")
+      .update({ bio: trimmed || null })
+      .eq("id", profile.id);
+    if (error) throw error;
+    setProfile({ ...profile, bio: trimmed || null });
+  }
+
+  async function updateCoverUrl(coverUrl: string | null) {
+    if (!profile) throw new Error("ログインしていません");
+    const { error } = await supabase
+      .from("sns_profiles")
+      .update({ cover_url: coverUrl })
+      .eq("id", profile.id);
+    if (error) throw error;
+    setProfile({ ...profile, coverUrl });
+  }
+
+  async function deleteAccount() {
+    if (!profile) throw new Error("ログインしていません");
+    const { error } = await supabase.rpc("sns_delete_account");
+    if (error) throw error;
+    await supabase.auth.signOut();
+    setProfile(null);
+  }
+
   return (
     <AuthContext.Provider
       value={{
@@ -149,6 +185,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         updateNickname,
         updateThemeColor,
         updateNotificationPrefs,
+        updateBio,
+        updateCoverUrl,
+        deleteAccount,
       }}
     >
       {children}

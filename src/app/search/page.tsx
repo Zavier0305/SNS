@@ -41,7 +41,14 @@ export default function SearchPage() {
   }, []);
 
   async function runSearch(q: string) {
-    if (!q.trim()) return;
+    const trimmed = q.trim();
+    if (!trimmed) return;
+    const tagMatch = trimmed.match(/^#([\w぀-ヿ一-鿿]+)$/);
+    if (tagMatch) {
+      setHistory(addSearchHistory(trimmed));
+      router.push(`/tag/${tagMatch[1].toLowerCase()}`);
+      return;
+    }
     setLoading(true);
     setSearched(true);
     try {

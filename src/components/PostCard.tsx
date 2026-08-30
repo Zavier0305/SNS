@@ -14,6 +14,7 @@ import { PollWidget } from "@/components/PollWidget";
 import { PostMenu } from "@/components/PostMenu";
 import { ReactionBar } from "@/components/ReactionBar";
 import { ImageLightbox } from "@/components/ImageLightbox";
+import { LikersModal } from "@/components/LikersModal";
 import { formatRelativeTime } from "@/lib/format-time";
 
 function formatTime(iso: string) {
@@ -107,6 +108,10 @@ export function PostCard({
   const [editContent, setEditContent] = useState(post.content);
   const [content, setContentState] = useState(post.content);
   const [saving, setSaving] = useState(false);
+  const [editSensitive, setEditSensitive] = useState(post.isSensitive);
+  const [sensitive, setSensitive] = useState(post.isSensitive);
+  const [revealed, setRevealed] = useState(false);
+  const [showLikers, setShowLikers] = useState(false);
   const { showToast } = useToast();
   const { bookmarked, refresh: refreshBookmark } = useIsBookmarked(post.id, currentUserId);
   const isOwnPost = currentUserId === post.authorId;
@@ -174,8 +179,9 @@ export function PostCard({
     if (!currentUserId || !editContent.trim() || saving) return;
     setSaving(true);
     try {
-      await updatePost(post.id, currentUserId, editContent.trim());
+      await updatePost(post.id, currentUserId, editContent.trim(), editSensitive);
       setContentState(editContent.trim());
+      setSensitive(editSensitive);
       setEditing(false);
       showToast("編集しました");
     } catch {
@@ -284,6 +290,7 @@ export function PostCard({
               <button
                 onClick={() => {
                   setEditContent(content);
+                  setEditSensitive(sensitive);
                   setEditing((v) => !v);
                 }}
                 className="text-xs text-black/40 dark:text-white/40 hover:underline"
@@ -337,10 +344,24 @@ export function PostCard({
           <textarea
             value={editContent}
             onChange={(e) => setEditContent(e.target.value)}
+            onKeyDown={(e) => {
+              if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+                e.preventDefault();
+                handleSaveEdit();
+              }
+            }}
             rows={3}
             maxLength={280}
             className="resize-none rounded-md border border-black/10 dark:border-white/20 bg-transparent p-2 text-sm outline-none focus:border-black/30 dark:focus:border-white/40"
           />
+          <label className="flex items-center gap-1.5 text-xs text-black/60 dark:text-white/60">
+            <input
+              type="checkbox"
+              checked={editSensitive}
+              onChange={(e) => setEditSensitive(e.target.checked)}
+            />
+            閲覧注意（内容をぼかして表示）
+          </label>
           <div className="flex justify-end gap-2">
             <button
               onClick={() => setEditing(false)}
@@ -357,14 +378,27 @@ export function PostCard({
             </button>
           </div>
         </div>
+      ) : sensitive && !revealed ? (
+        <div className="relative mt-1 rounded-md border border-black/10 dark:border-white/10 p-4 text-center">
+          <p className="text-sm text-black/50 dark:text-white/50 blur-sm select-none">
+            {content || "画像"}
+          </p>
+          <button
+            onClick={() => setRevealed(true)}
+            className="absolute inset-0 flex items-center justify-center text-xs font-medium bg-background/70"
+          >
+            ⚠️ 閲覧注意 - タップして表示
+          </button>
+        </div>
       ) : (
         <p className="mt-1 text-sm whitespace-pre-wrap break-words">
           {renderContent(content)}
         </p>
       )}
       {!editing &&
+        (!sensitive || revealed) &&
         extractLinks(content).map((url) => <LinkPreviewCard key={url} url={url} />)}
-      {post.imageUrls.length > 0 && (
+      {post.imageUrls.length > 0 && (!sensitive || revealed) && (
         <div
           className={`mt-2 grid gap-1 ${
             post.imageUrls.length === 1 ? "grid-cols-1" : "grid-cols-2"
@@ -420,18 +454,27 @@ export function PostCard({
       )}
 
       <div className="mt-2 flex items-center gap-4">
-        <button
-          onClick={handleLike}
-          disabled={!currentUserId}
-          aria-label={liked ? "いいねを取り消す" : "いいねする"}
-          aria-pressed={liked}
-          className={`flex items-center gap-1 text-xs ${
-            liked ? "text-pink-500" : "text-black/50 dark:text-white/50"
-          }`}
-        >
-          <span aria-hidden="true">{liked ? "♥" : "♡"}</span>
-          <span>{likeCount}</span>
-        </button>
+        <span className="flex items-center gap-1 text-xs">
+          <button
+            onClick={handleLike}
+            disabled={!currentUserId}
+            aria-label={liked ? "いいねを取り消す" : "いいねする"}
+            aria-pressed={liked}
+            className={liked ? "text-pink-500" : "text-black/50 dark:text-white/50"}
+          >
+            <span aria-hidden="true">{liked ? "♥" : "♡"}</span>
+          </button>
+          {likeCount > 0 ? (
+            <button
+              onClick={() => setShowLikers(true)}
+              className="text-black/50 dark:text-white/50 hover:underline"
+            >
+              {likeCount}
+            </button>
+          ) : (
+            <span className="text-black/50 dark:text-white/50">{likeCount}</span>
+          )}
+        </span>
         <button
           onClick={() => setShowComments((v) => !v)}
           aria-label="コメントを表示"
@@ -472,6 +515,7 @@ export function PostCard({
         </button>
       </div>
       <ReactionBar postId={post.id} currentUserId={currentUserId} />
+      {showLikers && <LikersModal postId={post.id} onClose={() => setShowLikers(false)} />}
       {showComments && (
         <CommentSection
           postId={post.id}

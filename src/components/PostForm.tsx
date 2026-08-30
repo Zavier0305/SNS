@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+  type KeyboardEvent,
+} from "react";
 import { addPost, MAX_IMAGE_BYTES, MAX_IMAGES_PER_POST } from "@/lib/posts-store";
 import { useToast } from "@/lib/toast-context";
 import type { Post } from "@/lib/types";
@@ -29,9 +36,11 @@ export function PostForm({
   const [content, setContent] = useState("");
   const [images, setImages] = useState<ImageEntry[]>([]);
   const [pollOptions, setPollOptions] = useState<string[] | null>(null);
+  const [isSensitive, setIsSensitive] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
   const { showToast } = useToast();
   const rateLimitKey = `sns.postTimestamps.${authorId}`;
 
@@ -143,6 +152,7 @@ export function PostForm({
           quotedPostId: quotedPost?.id ?? null,
           pollOptions: pollOptions ? validPollOptions : null,
           channelId: channelId ?? null,
+          isSensitive,
         },
       );
       recordPostTimestamp();
@@ -150,6 +160,7 @@ export function PostForm({
       localStorage.removeItem(draftKey);
       clearImages();
       setPollOptions(null);
+      setIsSensitive(false);
       showToast("投稿しました");
       onCancelQuote?.();
       onPosted?.();
@@ -160,8 +171,16 @@ export function PostForm({
     }
   }
 
+  function handleKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
+    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+      e.preventDefault();
+      formRef.current?.requestSubmit();
+    }
+  }
+
   return (
     <form
+      ref={formRef}
       onSubmit={handleSubmit}
       className="flex flex-col gap-2 p-4 border-b border-black/10 dark:border-white/10"
     >
@@ -185,7 +204,8 @@ export function PostForm({
       <textarea
         value={content}
         onChange={(e) => setContent(e.target.value)}
-        placeholder="いまどうしてる？"
+        onKeyDown={handleKeyDown}
+        placeholder="いまどうしてる？（Ctrl/Cmd+Enterで投稿）"
         rows={3}
         maxLength={MAX_CONTENT_LENGTH}
         className="resize-none rounded-md border border-black/10 dark:border-white/20 bg-transparent p-2 text-sm outline-none focus:border-black/30 dark:focus:border-white/40"
@@ -274,6 +294,14 @@ export function PostForm({
               投票を追加
             </button>
           )}
+          <label className="flex items-center gap-1 text-xs text-black/60 dark:text-white/60 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={isSensitive}
+              onChange={(e) => setIsSensitive(e.target.checked)}
+            />
+            閲覧注意
+          </label>
         </div>
         <div className="flex items-center gap-2">
           {cooldownSeconds > 0 && (

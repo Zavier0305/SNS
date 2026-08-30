@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import {
   deletePost,
   fetchBlockedIds,
@@ -12,6 +13,7 @@ import {
   toggleMute,
 } from "@/lib/posts-store";
 import { fetchFollowCounts } from "@/lib/follows-store";
+import { uploadCoverImage } from "@/lib/profiles-store";
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/lib/toast-context";
 import { PostCard } from "@/components/PostCard";
@@ -28,10 +30,12 @@ export function ProfileView({
   isFollowing: boolean;
   onFollowChange?: () => void;
 }) {
-  const { profile: myProfile, updateNickname, updateThemeColor } = useAuth();
+  const { profile: myProfile, updateNickname, updateThemeColor, updateBio, updateCoverUrl } =
+    useAuth();
   const { showToast } = useToast();
   const isOwnProfile = currentUserId === profile.id;
   const displayedThemeColor = isOwnProfile ? myProfile?.themeColor : profile.themeColor;
+  const displayedProfile = isOwnProfile ? myProfile ?? profile : profile;
 
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,6 +49,10 @@ export function ProfileView({
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [bio, setBio] = useState(profile.bio ?? "");
+  const [savingBio, setSavingBio] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
+  const coverInputRef = useRef<HTMLInputElement>(null);
 
   const refresh = useMemo(
     () => () => {
@@ -154,6 +162,36 @@ export function ProfileView({
     }
   }
 
+  async function handleSaveBio(e: FormEvent) {
+    e.preventDefault();
+    if (savingBio) return;
+    setSavingBio(true);
+    try {
+      await updateBio(bio);
+      showToast("自己紹介を更新しました");
+    } catch {
+      showToast("更新に失敗しました", "error");
+    } finally {
+      setSavingBio(false);
+    }
+  }
+
+  async function handleCoverChange(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !currentUserId) return;
+    setUploadingCover(true);
+    try {
+      const url = await uploadCoverImage(currentUserId, file);
+      await updateCoverUrl(url);
+      showToast("カバー画像を更新しました");
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "アップロードに失敗しました", "error");
+    } finally {
+      setUploadingCover(false);
+      if (coverInputRef.current) coverInputRef.current.value = "";
+    }
+  }
+
   function toggleSelectMode() {
     setSelectMode((prev) => !prev);
     setSelectedIds(new Set());
@@ -192,6 +230,30 @@ export function ProfileView({
       {displayedThemeColor && (
         <div className="h-2 w-full" style={{ backgroundColor: displayedThemeColor }} />
       )}
+      <div className="relative h-32 w-full bg-black/5 dark:bg-white/10">
+        {displayedProfile.coverUrl && (
+          <Image
+            src={displayedProfile.coverUrl}
+            alt=""
+            fill
+            sizes="100vw"
+            className="object-cover"
+          />
+        )}
+        {isOwnProfile && (
+          <label className="absolute bottom-2 right-2 text-[10px] rounded-full bg-black/60 text-white px-2 py-1 cursor-pointer">
+            {uploadingCover ? "アップロード中..." : "カバー画像を変更"}
+            <input
+              ref={coverInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleCoverChange}
+              disabled={uploadingCover}
+              className="hidden"
+            />
+          </label>
+        )}
+      </div>
       <div className="p-4 border-b border-black/10 dark:border-white/10">
         <div className="flex items-center justify-between">
           <div>
@@ -201,6 +263,11 @@ export function ProfileView({
             <p className="text-xs text-black/40 dark:text-white/40">
               @{profile.handle}
             </p>
+            {!isOwnProfile && displayedProfile.bio && (
+              <p className="mt-1 text-sm whitespace-pre-wrap break-words">
+                {displayedProfile.bio}
+              </p>
+            )}
           </div>
           {!isOwnProfile && currentUserId && (
             <div className="flex items-center gap-2">
@@ -278,6 +345,23 @@ export function ProfileView({
                 className="h-6 w-10 rounded border border-black/10 dark:border-white/20 bg-transparent"
               />
             </div>
+            <form onSubmit={handleSaveBio} className="mt-2 flex flex-col gap-1.5">
+              <textarea
+                value={bio}
+                onChange={(e) => setBio(e.target.value)}
+                placeholder="自己紹介（160文字まで）"
+                rows={2}
+                maxLength={160}
+                className="resize-none rounded-md border border-black/10 dark:border-white/20 bg-transparent p-2 text-sm outline-none focus:border-black/30 dark:focus:border-white/40"
+              />
+              <button
+                type="submit"
+                disabled={savingBio}
+                className="self-end text-xs rounded-full bg-foreground text-background px-3 py-1 disabled:opacity-40"
+              >
+                自己紹介を保存
+              </button>
+            </form>
           </>
         )}
       </div>

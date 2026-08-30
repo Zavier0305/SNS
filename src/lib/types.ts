@@ -4,6 +4,8 @@ export type Profile = {
   displayName: string;
   createdAt: string;
   themeColor: string | null;
+  bio: string | null;
+  coverUrl: string | null;
 };
 
 export type NotificationPrefs = {
@@ -36,6 +38,7 @@ export type Post = {
   myPollVote: number | null;
   channelId: string | null;
   isPinned: boolean;
+  isSensitive: boolean;
 };
 
 export type Comment = {

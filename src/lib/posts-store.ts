@@ -48,6 +48,7 @@ function toPost(
     myPollVote,
     channelId: row.channel_id,
     isPinned: row.is_pinned ?? false,
+    isSensitive: row.is_sensitive ?? false,
   };
 }
 
@@ -329,6 +330,7 @@ export async function addPost(
     quotedPostId?: string | null;
     pollOptions?: string[] | null;
     channelId?: string | null;
+    isSensitive?: boolean;
   },
 ) {
   const imageUrls = await uploadImages(authorId, imageFiles);
@@ -340,14 +342,22 @@ export async function addPost(
     quoted_post_id: options?.quotedPostId ?? null,
     poll_options: options?.pollOptions ?? null,
     channel_id: options?.channelId ?? null,
+    is_sensitive: options?.isSensitive ?? false,
   });
   if (error) throw error;
 }
 
-export async function updatePost(postId: string, authorId: string, content: string) {
+export async function updatePost(
+  postId: string,
+  authorId: string,
+  content: string,
+  isSensitive?: boolean,
+) {
   const { error } = await supabase
     .from("sns_posts")
-    .update({ content })
+    .update(
+      isSensitive === undefined ? { content } : { content, is_sensitive: isSensitive },
+    )
     .eq("id", postId)
     .eq("author_id", authorId);
   if (error) throw error;
@@ -449,6 +459,22 @@ export async function toggleLike(
   } else {
     await supabase.from("sns_likes").insert({ post_id: postId, user_id: userId });
   }
+}
+
+export type Liker = { id: string; handle: string; displayName: string };
+
+export async function fetchPostLikers(postId: string): Promise<Liker[]> {
+  const { data } = await supabase
+    .from("sns_likes")
+    .select("user_id, sns_profiles(handle, display_name)")
+    .eq("post_id", postId)
+    .order("created_at", { ascending: false })
+    .limit(100);
+  return (data ?? []).map((row) => ({
+    id: row.user_id,
+    handle: row.sns_profiles?.handle ?? "",
+    displayName: row.sns_profiles?.display_name ?? "名無しさん",
+  }));
 }
 
 export async function toggleFollow(

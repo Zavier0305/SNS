@@ -1,14 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useFollowingIds, usePosts } from "@/lib/posts-store";
 import { fetchPreservedPosts } from "@/lib/discovery-store";
+import { fetchSuggestedProfiles } from "@/lib/follows-store";
 import { Header } from "@/components/Header";
 import { PostCard } from "@/components/PostCard";
 import { PostListSkeleton } from "@/components/PostCardSkeleton";
-import type { Post } from "@/lib/types";
+import type { Post, Profile } from "@/lib/types";
 
 export default function ExplorePage() {
   const { profile, checked } = useAuth();
@@ -19,6 +21,7 @@ export default function ExplorePage() {
   const [preservedPosts, setPreservedPosts] = useState<Post[]>([]);
   const [loadingPreserved, setLoadingPreserved] = useState(true);
   const { followingIds } = useFollowingIds(userId);
+  const [suggested, setSuggested] = useState<Profile[]>([]);
 
   useEffect(() => {
     if (checked && !profile) router.push("/login");
@@ -30,6 +33,10 @@ export default function ExplorePage() {
       .finally(() => setLoadingPreserved(false));
   }, [userId]);
 
+  useEffect(() => {
+    if (userId) fetchSuggestedProfiles(userId).then(setSuggested);
+  }, [userId]);
+
   if (!checked || !profile) return null;
 
   const posts = tab === "trending" ? trendingPosts.slice(0, 20) : preservedPosts;
@@ -39,6 +46,27 @@ export default function ExplorePage() {
     <>
       <Header />
       <main className="flex-1 w-full max-w-xl mx-auto">
+        {suggested.length > 0 && (
+          <div className="p-4 border-b border-black/10 dark:border-white/10">
+            <h2 className="text-xs font-semibold text-black/50 dark:text-white/50 mb-2">
+              おすすめユーザー
+            </h2>
+            <div className="flex gap-3 overflow-x-auto">
+              {suggested.map((u) => (
+                <Link
+                  key={u.id}
+                  href={`/u/${u.handle}`}
+                  className="shrink-0 w-28 rounded-md border border-black/10 dark:border-white/10 p-2 text-center hover:bg-black/5 dark:hover:bg-white/10"
+                >
+                  <p className="text-xs font-semibold truncate">{u.displayName}</p>
+                  <p className="text-[10px] text-black/40 dark:text-white/40 truncate">
+                    @{u.handle}
+                  </p>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
         <div className="flex border-b border-black/10 dark:border-white/10">
           {(
             [

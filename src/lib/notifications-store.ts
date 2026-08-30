@@ -53,6 +53,14 @@ export async function markAllNotificationsRead(userId: string) {
     .is("read_at", null);
 }
 
+export async function markNotificationRead(notificationId: string) {
+  await supabase
+    .from("sns_notifications")
+    .update({ read_at: new Date().toISOString() })
+    .eq("id", notificationId)
+    .is("read_at", null);
+}
+
 export function useUnreadNotificationCount(userId: string | null) {
   const [count, setCount] = useState(0);
 
