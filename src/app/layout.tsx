@@ -4,6 +4,7 @@ import { AuthProvider } from "@/lib/auth-context";
 import { ToastProvider } from "@/lib/toast-context";
 import { NotificationCountProvider } from "@/lib/notification-count-context";
 import { Sidebar } from "@/components/Sidebar";
+import { RightSidebar } from "@/components/RightSidebar";
 import { BottomNav } from "@/components/BottomNav";
 import "./globals.css";
 
@@ -45,6 +46,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               <div className="min-h-full sm:flex sm:justify-center">
                 <Sidebar />
                 <div className="flex-1 flex flex-col min-w-0 sm:max-w-2xl">{children}</div>
+                <RightSidebar />
               </div>
               <BottomNav />
             </NotificationCountProvider>

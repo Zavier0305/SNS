@@ -309,9 +309,12 @@ export default function SettingsPage() {
                 ))
               )}
             </section>
-            <section className="p-4 border-b border-black/10 dark:border-white/10">
+            <section className="p-4 border-b border-black/10 dark:border-white/10 flex flex-col gap-2">
               <Link href="/reports" className="text-sm text-blue-500 hover:underline">
                 通報履歴を見る
+              </Link>
+              <Link href="/admin" className="text-sm text-blue-500 hover:underline">
+                管理ダッシュボードを見る
               </Link>
             </section>
             <section className="p-4 border-b border-black/10 dark:border-white/10">

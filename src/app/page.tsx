@@ -136,7 +136,7 @@ export default function Home() {
           </Link>
         </div>
         {tags.length > 0 && (
-          <div className="p-3 flex gap-2 overflow-x-auto border-b border-black/10 dark:border-white/10">
+          <div className="lg:hidden p-3 flex gap-2 overflow-x-auto border-b border-black/10 dark:border-white/10">
             {tags.map((t) => (
               <Link
                 key={t.tag}

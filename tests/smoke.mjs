@@ -171,6 +171,7 @@ async function run() {
     "/profile",
     "/u/smoketest",
     "/settings",
+    "/admin",
     "/notifications",
     "/post/p1",
   ];

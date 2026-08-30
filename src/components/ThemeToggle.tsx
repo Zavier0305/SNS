@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { SunIcon, MoonIcon } from "@/components/icons";
 
 const STORAGE_KEY = "sns.theme";
 
@@ -30,13 +31,18 @@ export function ThemeToggle() {
     localStorage.setItem(STORAGE_KEY, next);
   }
 
+  const prefersDark =
+    typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  const isDark = theme === "dark" || (theme === null && prefersDark);
+
   return (
     <button
       onClick={toggle}
-      className="text-xs text-black/60 dark:text-white/60 hover:underline"
       aria-label="テーマ切り替え"
+      className="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-[15px] text-black/70 dark:text-white/70 hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
     >
-      {theme === "dark" ? "☀️" : theme === "light" ? "🌙" : "🌓"}
+      {isDark ? <MoonIcon className="h-5 w-5 shrink-0" /> : <SunIcon className="h-5 w-5 shrink-0" />}
+      <span>{isDark ? "ダーク" : "ライト"}</span>
     </button>
   );
 }

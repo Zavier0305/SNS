@@ -40,33 +40,47 @@ export function Sidebar() {
     router.push("/login");
   }
 
+  const composeTarget = pathname.startsWith("/servers/") ? pathname : "/";
+  const composeActive = pathname === "/compose";
+
   return (
-    <aside className="hidden sm:flex sm:flex-col sm:w-56 sm:shrink-0 sm:h-screen sm:sticky sm:top-0 border-r border-black/10 dark:border-white/10 px-3 py-4">
-      <div className="flex items-center justify-between px-2 py-2">
-        <Link href="/" className="text-lg font-bold">
-          SNS
-        </Link>
+    <aside className="hidden sm:flex sm:flex-col sm:w-60 sm:shrink-0 sm:h-screen sm:sticky sm:top-0 border-r border-black/10 dark:border-white/10 px-3 py-4">
+      <Link href="/" className="px-2 py-2 text-lg font-bold">
+        SNS
+      </Link>
+
+      <nav className="mt-3 flex flex-col gap-0.5" aria-label="メインナビゲーション">
         <Link
           href="/"
-          aria-label="投稿する"
-          className="flex h-8 w-8 items-center justify-center rounded-md bg-foreground text-background hover:opacity-90"
+          aria-current={pathname === "/" ? "page" : undefined}
+          className={`relative flex items-center gap-3 rounded-md px-3 py-2.5 text-[15px] transition-colors ${
+            pathname === "/"
+              ? "bg-foreground/[0.06] dark:bg-foreground/10 font-semibold"
+              : "text-black/70 dark:text-white/70 hover:bg-black/5 dark:hover:bg-white/10"
+          }`}
         >
-          <PlusIcon className="h-4 w-4" />
+          <HomeIcon className="h-5 w-5 shrink-0" />
+          <span>ホーム</span>
         </Link>
-      </div>
-
-      <nav className="mt-3 flex flex-col" aria-label="メインナビゲーション">
-        {NAV_ITEMS.map((item) => {
-          const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+        <Link
+          href={composeTarget}
+          aria-current={composeActive ? "page" : undefined}
+          className="flex items-center gap-3 rounded-md px-3 py-2.5 text-[15px] font-medium text-background bg-foreground hover:opacity-90 transition-opacity"
+        >
+          <PlusIcon className="h-5 w-5 shrink-0" />
+          <span>投稿する</span>
+        </Link>
+        {NAV_ITEMS.slice(1).map((item) => {
+          const active = pathname.startsWith(item.href);
           return (
             <Link
               key={item.href}
               href={item.href}
               aria-current={active ? "page" : undefined}
-              className={`relative flex items-center gap-3 border-l-2 px-3 py-2.5 text-[15px] transition-colors ${
+              className={`relative flex items-center gap-3 rounded-md px-3 py-2.5 text-[15px] transition-colors ${
                 active
-                  ? "border-foreground font-semibold"
-                  : "border-transparent text-black/70 dark:text-white/70 hover:border-black/20 dark:hover:border-white/20"
+                  ? "bg-foreground/[0.06] dark:bg-foreground/10 font-semibold"
+                  : "text-black/70 dark:text-white/70 hover:bg-black/5 dark:hover:bg-white/10"
               }`}
             >
               <item.Icon className="h-5 w-5 shrink-0" />
@@ -79,39 +93,40 @@ export function Sidebar() {
             </Link>
           );
         })}
-      </nav>
-
-      <div className="mt-auto flex flex-col gap-1 pt-4 border-t border-black/10 dark:border-white/10">
         <Link
           href="/settings"
-          className="flex items-center gap-3 rounded-full px-3 py-2 text-sm text-black/70 dark:text-white/70 hover:bg-black/5 dark:hover:bg-white/10"
+          aria-current={pathname === "/settings" ? "page" : undefined}
+          className={`flex items-center gap-3 rounded-md px-3 py-2.5 text-[15px] transition-colors ${
+            pathname === "/settings"
+              ? "bg-foreground/[0.06] dark:bg-foreground/10 font-semibold"
+              : "text-black/70 dark:text-white/70 hover:bg-black/5 dark:hover:bg-white/10"
+          }`}
         >
-          <SettingsIcon className="h-4 w-4" />
-          設定
+          <SettingsIcon className="h-5 w-5 shrink-0" />
+          <span>設定</span>
         </Link>
-        <Link
-          href="/profile"
-          className="flex items-center gap-3 rounded-full px-3 py-2 hover:bg-black/5 dark:hover:bg-white/10"
-        >
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-black/10 dark:bg-white/10">
-            <UserIcon className="h-4 w-4" />
-          </span>
-          <span className="min-w-0">
-            <span className="block truncate text-sm font-medium">{profile.displayName}</span>
-            <span className="block truncate text-xs text-black/40 dark:text-white/40">
-              @{profile.handle}
+      </nav>
+
+      <div className="mt-auto flex flex-col gap-0.5 pt-3 border-t border-black/10 dark:border-white/10">
+        <ThemeToggle />
+        <div className="flex items-center gap-1 rounded-md pl-1 pr-2 hover:bg-black/5 dark:hover:bg-white/10">
+          <Link href="/profile" className="flex flex-1 min-w-0 items-center gap-3 px-2 py-2">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-black/10 dark:bg-white/10">
+              <UserIcon className="h-4 w-4" />
             </span>
-          </span>
-        </Link>
-        <div className="flex items-center justify-between px-3 py-1">
-          <ThemeToggle />
+            <span className="min-w-0">
+              <span className="block truncate text-sm font-medium">{profile.displayName}</span>
+              <span className="block truncate text-xs text-black/40 dark:text-white/40">
+                @{profile.handle}
+              </span>
+            </span>
+          </Link>
           <button
             onClick={handleLogout}
             aria-label="ログアウト"
-            className="flex items-center gap-1.5 text-xs text-black/50 dark:text-white/50 hover:text-black dark:hover:text-white"
+            className="shrink-0 p-1.5 text-black/40 dark:text-white/40 hover:text-black dark:hover:text-white"
           >
             <LogoutIcon className="h-4 w-4" />
-            ログアウト
           </button>
         </div>
       </div>
