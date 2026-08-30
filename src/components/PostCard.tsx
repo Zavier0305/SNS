@@ -533,77 +533,81 @@ export function PostCard({
         </div>
       )}
 
-      <div className="mt-2 flex items-center justify-between max-w-md">
-        <span className="flex items-center gap-1.5">
-          <button
-            onClick={handleLike}
-            disabled={!currentUserId}
-            aria-label={liked ? "いいねを取り消す" : "いいねする"}
-            aria-pressed={liked}
-            className={`flex items-center justify-center h-8 w-8 rounded-full transition-colors ${
-              liked
-                ? "text-pink-500"
-                : "text-black/50 dark:text-white/50 hover:bg-pink-500/10 hover:text-pink-500"
-            }`}
-          >
-            <HeartIcon filled={liked} className="h-[18px] w-[18px]" />
-          </button>
-          {likeCount > 0 ? (
+      <div className="mt-2 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <span className="flex items-center gap-1">
             <button
-              onClick={() => setShowLikers(true)}
-              className="text-xs text-black/50 dark:text-white/50 hover:underline"
+              onClick={handleLike}
+              disabled={!currentUserId}
+              aria-label={liked ? "いいねを取り消す" : "いいねする"}
+              aria-pressed={liked}
+              className={`flex items-center justify-center h-8 w-8 rounded-lg transition-colors ${
+                liked
+                  ? "text-pink-500"
+                  : "text-black/50 dark:text-white/50 hover:bg-pink-500/10 hover:text-pink-500"
+              }`}
             >
-              {likeCount}
+              <HeartIcon filled={liked} className="h-[18px] w-[18px]" />
             </button>
-          ) : (
-            <span className="text-xs text-black/50 dark:text-white/50">{likeCount}</span>
-          )}
-        </span>
-        <button
-          onClick={() => setShowComments((v) => !v)}
-          aria-label="コメントを表示"
-          aria-expanded={showComments}
-          className="flex items-center gap-1.5 text-xs text-black/50 dark:text-white/50"
-        >
-          <span className="flex items-center justify-center h-8 w-8 rounded-full hover:bg-blue-500/10 hover:text-blue-500 transition-colors">
-            <CommentIcon className="h-[18px] w-[18px]" />
-          </span>
-          {commentCount > 0 && <span>{commentCount}</span>}
-        </button>
-        {onQuote && currentUserId && (
-          <button
-            onClick={() => onQuote(post)}
-            aria-label="引用して投稿"
-            className="flex items-center justify-center h-8 w-8 rounded-full text-black/50 dark:text-white/50 hover:bg-green-500/10 hover:text-green-500 transition-colors"
-          >
-            <RepostIcon className="h-[18px] w-[18px]" />
-          </button>
-        )}
-        {currentUserId && (
-          <button
-            onClick={handleBookmark}
-            aria-label={bookmarked ? "ブックマークを解除" : "ブックマークする"}
-            aria-pressed={bookmarked}
-            className={`flex items-center justify-center h-8 w-8 rounded-full transition-colors ${
-              bookmarked
-                ? "text-blue-500"
-                : "text-black/50 dark:text-white/50 hover:bg-blue-500/10 hover:text-blue-500"
-            }`}
-          >
-            {bookmarked ? (
-              <BookmarkFilledIcon className="h-[18px] w-[18px]" />
+            {likeCount > 0 ? (
+              <button
+                onClick={() => setShowLikers(true)}
+                className="text-xs font-medium text-black/60 dark:text-white/60 hover:underline"
+              >
+                {likeCount}
+              </button>
             ) : (
-              <BookmarkIcon className="h-[18px] w-[18px]" />
+              <span className="text-xs text-black/40 dark:text-white/40">{likeCount}</span>
             )}
+          </span>
+          <button
+            onClick={() => setShowComments((v) => !v)}
+            aria-label="コメントを表示"
+            aria-expanded={showComments}
+            className="flex items-center gap-1 text-xs font-medium text-black/60 dark:text-white/60"
+          >
+            <span className="flex items-center justify-center h-8 w-8 rounded-lg hover:bg-blue-500/10 hover:text-blue-500 transition-colors">
+              <CommentIcon className="h-[18px] w-[18px]" />
+            </span>
+            {commentCount > 0 && <span>{commentCount}</span>}
           </button>
-        )}
-        <button
-          onClick={handleShare}
-          aria-label="共有する"
-          className="flex items-center justify-center h-8 w-8 rounded-full text-black/50 dark:text-white/50 hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
-        >
-          <ShareIcon className="h-[18px] w-[18px]" />
-        </button>
+        </div>
+        <div className="flex items-center gap-0.5 rounded-lg border border-black/10 dark:border-white/10 p-0.5">
+          {onQuote && currentUserId && (
+            <button
+              onClick={() => onQuote(post)}
+              aria-label="引用して投稿"
+              className="flex items-center justify-center h-7 w-7 rounded-md text-black/50 dark:text-white/50 hover:bg-green-500/10 hover:text-green-500 transition-colors"
+            >
+              <RepostIcon className="h-4 w-4" />
+            </button>
+          )}
+          {currentUserId && (
+            <button
+              onClick={handleBookmark}
+              aria-label={bookmarked ? "ブックマークを解除" : "ブックマークする"}
+              aria-pressed={bookmarked}
+              className={`flex items-center justify-center h-7 w-7 rounded-md transition-colors ${
+                bookmarked
+                  ? "text-blue-500"
+                  : "text-black/50 dark:text-white/50 hover:bg-blue-500/10 hover:text-blue-500"
+              }`}
+            >
+              {bookmarked ? (
+                <BookmarkFilledIcon className="h-4 w-4" />
+              ) : (
+                <BookmarkIcon className="h-4 w-4" />
+              )}
+            </button>
+          )}
+          <button
+            onClick={handleShare}
+            aria-label="共有する"
+            className="flex items-center justify-center h-7 w-7 rounded-md text-black/50 dark:text-white/50 hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+          >
+            <ShareIcon className="h-4 w-4" />
+          </button>
+        </div>
       </div>
       <ReactionBar postId={post.id} currentUserId={currentUserId} />
       {showLikers && <LikersModal postId={post.id} onClose={() => setShowLikers(false)} />}

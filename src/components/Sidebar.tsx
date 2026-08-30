@@ -42,11 +42,20 @@ export function Sidebar() {
 
   return (
     <aside className="hidden sm:flex sm:flex-col sm:w-56 sm:shrink-0 sm:h-screen sm:sticky sm:top-0 border-r border-black/10 dark:border-white/10 px-3 py-4">
-      <Link href="/" className="px-2 py-2 text-lg font-bold">
-        SNS
-      </Link>
+      <div className="flex items-center justify-between px-2 py-2">
+        <Link href="/" className="text-lg font-bold">
+          SNS
+        </Link>
+        <Link
+          href="/"
+          aria-label="投稿する"
+          className="flex h-8 w-8 items-center justify-center rounded-md bg-foreground text-background hover:opacity-90"
+        >
+          <PlusIcon className="h-4 w-4" />
+        </Link>
+      </div>
 
-      <nav className="mt-4 flex flex-col gap-1" aria-label="メインナビゲーション">
+      <nav className="mt-3 flex flex-col" aria-label="メインナビゲーション">
         {NAV_ITEMS.map((item) => {
           const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
           return (
@@ -54,10 +63,10 @@ export function Sidebar() {
               key={item.href}
               href={item.href}
               aria-current={active ? "page" : undefined}
-              className={`relative flex items-center gap-3 rounded-full px-3 py-2.5 text-[15px] transition-colors ${
+              className={`relative flex items-center gap-3 border-l-2 px-3 py-2.5 text-[15px] transition-colors ${
                 active
-                  ? "font-semibold bg-black/5 dark:bg-white/10"
-                  : "text-black/70 dark:text-white/70 hover:bg-black/5 dark:hover:bg-white/10"
+                  ? "border-foreground font-semibold"
+                  : "border-transparent text-black/70 dark:text-white/70 hover:border-black/20 dark:hover:border-white/20"
               }`}
             >
               <item.Icon className="h-5 w-5 shrink-0" />
@@ -71,14 +80,6 @@ export function Sidebar() {
           );
         })}
       </nav>
-
-      <Link
-        href="/"
-        className="mt-4 flex items-center justify-center gap-2 rounded-full bg-foreground text-background py-2.5 text-sm font-semibold hover:opacity-90"
-      >
-        <PlusIcon className="h-4 w-4" />
-        投稿する
-      </Link>
 
       <div className="mt-auto flex flex-col gap-1 pt-4 border-t border-black/10 dark:border-white/10">
         <Link

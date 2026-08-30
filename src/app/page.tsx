@@ -9,6 +9,7 @@ import { useTrendingTags } from "@/lib/discovery-store";
 import { PostForm } from "@/components/PostForm";
 import { PostCard } from "@/components/PostCard";
 import { PostListSkeleton } from "@/components/PostCardSkeleton";
+import { SearchIcon, ServersIcon } from "@/components/icons";
 import type { FeedKind, Post } from "@/lib/types";
 
 function dateLabel(iso: string): string {
@@ -121,9 +122,17 @@ export default function Home() {
         <div className="p-3 flex items-center justify-between border-b border-black/10 dark:border-white/10">
           <Link
             href="/search"
-            className="text-sm text-black/60 dark:text-white/60 hover:underline"
+            className="flex items-center gap-1.5 text-sm text-black/60 dark:text-white/60 hover:underline"
           >
-            🔍 検索
+            <SearchIcon className="h-4 w-4" />
+            検索
+          </Link>
+          <Link
+            href="/servers"
+            className="sm:hidden flex items-center gap-1.5 text-sm text-black/60 dark:text-white/60 hover:underline"
+          >
+            <ServersIcon className="h-4 w-4" />
+            サーバー
           </Link>
         </div>
         {tags.length > 0 && (
