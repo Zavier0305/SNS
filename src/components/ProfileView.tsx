@@ -1,7 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { fetchPostsByAuthor, toggleFollow } from "@/lib/posts-store";
+import {
+  fetchBlockedIds,
+  fetchMutedIds,
+  fetchPostsByAuthor,
+  toggleBlock,
+  toggleFollow,
+  toggleMute,
+} from "@/lib/posts-store";
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/lib/toast-context";
 import { PostCard } from "@/components/PostCard";
@@ -27,6 +34,8 @@ export function ProfileView({
   const [following, setFollowing] = useState(isFollowing);
   const [nickname, setNickname] = useState(profile.displayName);
   const [savingNickname, setSavingNickname] = useState(false);
+  const [muted, setMuted] = useState(false);
+  const [blocked, setBlocked] = useState(false);
 
   const refresh = useMemo(
     () => () => {
@@ -42,6 +51,16 @@ export function ProfileView({
     // eslint-disable-next-line react-hooks/set-state-in-effect
     refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    if (!currentUserId || isOwnProfile) return;
+    Promise.all([fetchMutedIds(currentUserId), fetchBlockedIds(currentUserId)]).then(
+      ([mutedIds, blockedIds]) => {
+        setMuted(mutedIds.includes(profile.id));
+        setBlocked(blockedIds.includes(profile.id));
+      },
+    );
+  }, [currentUserId, isOwnProfile, profile.id]);
 
   const stats = useMemo(
     () => ({
@@ -61,6 +80,39 @@ export function ProfileView({
       onFollowChange?.();
     } catch {
       setFollowing(following);
+    }
+  }
+
+  async function handleMute() {
+    if (!currentUserId) return;
+    const next = !muted;
+    setMuted(next);
+    try {
+      await toggleMute(profile.id, currentUserId, muted);
+      showToast(next ? "ミュートしました" : "ミュートを解除しました");
+    } catch {
+      setMuted(muted);
+      showToast("操作に失敗しました", "error");
+    }
+  }
+
+  async function handleBlock() {
+    if (!currentUserId) return;
+    if (!blocked && !confirm("このユーザーをブロックしますか？（相互フォローは解除されます）")) {
+      return;
+    }
+    const next = !blocked;
+    setBlocked(next);
+    try {
+      await toggleBlock(profile.id, currentUserId, blocked);
+      showToast(next ? "ブロックしました" : "ブロックを解除しました");
+      if (next) {
+        setFollowing(false);
+        onFollowChange?.();
+      }
+    } catch {
+      setBlocked(blocked);
+      showToast("操作に失敗しました", "error");
     }
   }
 
@@ -91,12 +143,34 @@ export function ProfileView({
             </p>
           </div>
           {!isOwnProfile && currentUserId && (
-            <button
-              onClick={handleFollow}
-              className="text-sm rounded-full border border-black/20 dark:border-white/20 px-3 py-1 hover:bg-black/5 dark:hover:bg-white/10"
-            >
-              {following ? "フォロー中" : "フォロー"}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleFollow}
+                className="text-sm rounded-full border border-black/20 dark:border-white/20 px-3 py-1 hover:bg-black/5 dark:hover:bg-white/10"
+              >
+                {following ? "フォロー中" : "フォロー"}
+              </button>
+              <button
+                onClick={handleMute}
+                className={`text-xs rounded-full border px-2 py-1 ${
+                  muted
+                    ? "border-black/40 dark:border-white/40"
+                    : "border-black/20 dark:border-white/20"
+                }`}
+              >
+                {muted ? "ミュート中" : "ミュート"}
+              </button>
+              <button
+                onClick={handleBlock}
+                className={`text-xs rounded-full border px-2 py-1 ${
+                  blocked
+                    ? "border-red-500 text-red-500"
+                    : "border-black/20 dark:border-white/20"
+                }`}
+              >
+                {blocked ? "ブロック中" : "ブロック"}
+              </button>
+            </div>
           )}
         </div>
 

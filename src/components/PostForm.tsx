@@ -3,17 +3,25 @@
 import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { addPost, MAX_IMAGE_BYTES } from "@/lib/posts-store";
 import { useToast } from "@/lib/toast-context";
+import type { Post } from "@/lib/types";
+
+const MAX_POLL_OPTIONS = 4;
 
 export function PostForm({
   authorId,
   onPosted,
+  quotedPost,
+  onCancelQuote,
 }: {
   authorId: string;
   onPosted?: () => void;
+  quotedPost?: Post | null;
+  onCancelQuote?: () => void;
 }) {
   const [content, setContent] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [pollOptions, setPollOptions] = useState<string[] | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { showToast } = useToast();
@@ -35,19 +43,39 @@ export function PostForm({
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
+  function updatePollOption(index: number, value: string) {
+    setPollOptions((current) => {
+      if (!current) return current;
+      const next = [...current];
+      next[index] = value;
+      return next;
+    });
+  }
+
+  const validPollOptions = pollOptions?.map((o) => o.trim()).filter(Boolean) ?? [];
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     const trimmed = content.trim();
     if (!trimmed || submitting) return;
+    if (pollOptions && validPollOptions.length < 2) {
+      showToast("投票の選択肢は2つ以上入力してください", "error");
+      return;
+    }
     setSubmitting(true);
     try {
-      await addPost(authorId, trimmed, imageFile);
+      await addPost(authorId, trimmed, imageFile, {
+        quotedPostId: quotedPost?.id ?? null,
+        pollOptions: pollOptions ? validPollOptions : null,
+      });
       setContent("");
       clearImage();
+      setPollOptions(null);
       showToast("投稿しました");
+      onCancelQuote?.();
       onPosted?.();
-    } catch {
-      showToast("投稿に失敗しました", "error");
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "投稿に失敗しました", "error");
     } finally {
       setSubmitting(false);
     }
@@ -58,6 +86,23 @@ export function PostForm({
       onSubmit={handleSubmit}
       className="flex flex-col gap-2 p-4 border-b border-black/10 dark:border-white/10"
     >
+      {quotedPost && (
+        <div className="flex items-start justify-between rounded-md border border-black/10 dark:border-white/10 p-2 text-xs">
+          <div>
+            <span className="font-semibold">{quotedPost.authorDisplayName}</span>
+            <p className="mt-0.5 text-black/60 dark:text-white/60 line-clamp-2">
+              {quotedPost.content}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onCancelQuote}
+            className="text-black/40 dark:text-white/40 shrink-0 ml-2"
+          >
+            ×
+          </button>
+        </div>
+      )}
       <textarea
         value={content}
         onChange={(e) => setContent(e.target.value)}
@@ -83,17 +128,60 @@ export function PostForm({
           </button>
         </div>
       )}
+      {pollOptions && (
+        <div className="flex flex-col gap-1.5">
+          {pollOptions.map((option, i) => (
+            <input
+              key={i}
+              value={option}
+              onChange={(e) => updatePollOption(i, e.target.value)}
+              placeholder={`選択肢${i + 1}`}
+              maxLength={40}
+              className="rounded-md border border-black/10 dark:border-white/20 bg-transparent px-2 py-1 text-xs outline-none focus:border-black/30 dark:focus:border-white/40"
+            />
+          ))}
+          <div className="flex items-center gap-2">
+            {pollOptions.length < MAX_POLL_OPTIONS && (
+              <button
+                type="button"
+                onClick={() => setPollOptions((c) => [...(c ?? []), ""])}
+                className="text-xs text-black/60 dark:text-white/60 hover:underline"
+              >
+                + 選択肢を追加
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setPollOptions(null)}
+              className="text-xs text-black/40 dark:text-white/40 hover:underline"
+            >
+              投票を削除
+            </button>
+          </div>
+        </div>
+      )}
       <div className="flex items-center justify-between">
-        <label className="text-xs text-black/60 dark:text-white/60 cursor-pointer hover:underline">
-          画像を追加
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            onChange={handleImageChange}
-            className="hidden"
-          />
-        </label>
+        <div className="flex items-center gap-3">
+          <label className="text-xs text-black/60 dark:text-white/60 cursor-pointer hover:underline">
+            画像を追加
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleImageChange}
+              className="hidden"
+            />
+          </label>
+          {!pollOptions && (
+            <button
+              type="button"
+              onClick={() => setPollOptions(["", ""])}
+              className="text-xs text-black/60 dark:text-white/60 hover:underline"
+            >
+              投票を追加
+            </button>
+          )}
+        </div>
         <button
           type="submit"
           disabled={!content.trim() || submitting}

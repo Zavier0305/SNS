@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import type { Post } from "@/lib/types";
 import { deletePost, toggleFollow, toggleLike } from "@/lib/posts-store";
 import { useToast } from "@/lib/toast-context";
 import { CommentSection } from "@/components/CommentSection";
+import { PollWidget } from "@/components/PollWidget";
+import { PostMenu } from "@/components/PostMenu";
 
 function formatTime(iso: string) {
   const date = new Date(iso);
@@ -22,18 +24,39 @@ function remainingDays(expireAt: string): number {
   return Math.max(0, Math.ceil(ms / (1000 * 60 * 60 * 24)));
 }
 
+const HASHTAG_PATTERN = /#([\w぀-ヿ一-鿿]+)/g;
+
+function renderContent(content: string) {
+  const parts = content.split(HASHTAG_PATTERN);
+  return parts.map((part, i) =>
+    i % 2 === 1 ? (
+      <Link
+        key={i}
+        href={`/tag/${part.toLowerCase()}`}
+        className="text-blue-500 hover:underline"
+      >
+        #{part}
+      </Link>
+    ) : (
+      <Fragment key={i}>{part}</Fragment>
+    ),
+  );
+}
+
 export function PostCard({
   post,
   currentUserId,
   isFollowing,
   onFollowChange,
   onDeleted,
+  onQuote,
 }: {
   post: Post;
   currentUserId: string | null;
   isFollowing: boolean;
   onFollowChange?: () => void;
   onDeleted?: () => void;
+  onQuote?: (post: Post) => void;
 }) {
   const [liked, setLiked] = useState(post.likedByMe);
   const [likeCount, setLikeCount] = useState(post.likeCount);
@@ -41,6 +64,7 @@ export function PostCard({
   const [following, setFollowing] = useState(isFollowing);
   const [showComments, setShowComments] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [hidden, setHidden] = useState(false);
   const { showToast } = useToast();
   const isOwnPost = currentUserId === post.authorId;
   const days = remainingDays(post.expireAt);
@@ -84,6 +108,8 @@ export function PostCard({
     }
   }
 
+  if (hidden) return null;
+
   return (
     <article className="p-4 border-b border-black/10 dark:border-white/10">
       <div className="flex items-center justify-between gap-2">
@@ -101,23 +127,34 @@ export function PostCard({
             {formatTime(post.createdAt)}
           </span>
         </div>
-        {!isOwnPost && currentUserId && (
-          <button
-            onClick={handleFollow}
-            className="text-xs shrink-0 rounded-full border border-black/20 dark:border-white/20 px-2 py-0.5 hover:bg-black/5 dark:hover:bg-white/10"
-          >
-            {following ? "フォロー中" : "フォロー"}
-          </button>
-        )}
-        {isOwnPost && (
-          <button
-            onClick={handleDelete}
-            disabled={deleting}
-            className="text-xs shrink-0 text-black/40 dark:text-white/40 hover:text-red-500"
-          >
-            削除
-          </button>
-        )}
+        <div className="flex items-center gap-2 shrink-0">
+          {!isOwnPost && currentUserId && (
+            <button
+              onClick={handleFollow}
+              className="text-xs rounded-full border border-black/20 dark:border-white/20 px-2 py-0.5 hover:bg-black/5 dark:hover:bg-white/10"
+            >
+              {following ? "フォロー中" : "フォロー"}
+            </button>
+          )}
+          {isOwnPost ? (
+            <button
+              onClick={handleDelete}
+              disabled={deleting}
+              className="text-xs text-black/40 dark:text-white/40 hover:text-red-500"
+            >
+              削除
+            </button>
+          ) : (
+            currentUserId && (
+              <PostMenu
+                postId={post.id}
+                authorId={post.authorId}
+                currentUserId={currentUserId}
+                onHidden={() => setHidden(true)}
+              />
+            )
+          )}
+        </div>
       </div>
 
       <div className="mt-1 flex gap-1.5">
@@ -137,7 +174,7 @@ export function PostCard({
       </div>
 
       <p className="mt-1 text-sm whitespace-pre-wrap break-words">
-        {post.content}
+        {renderContent(post.content)}
       </p>
       {post.imageUrl && (
         // eslint-disable-next-line @next/next/no-img-element
@@ -147,6 +184,28 @@ export function PostCard({
           className="mt-2 rounded-lg max-h-80 w-auto object-cover"
         />
       )}
+
+      {post.pollOptions && (
+        <PollWidget
+          postId={post.id}
+          options={post.pollOptions}
+          myVote={post.myPollVote}
+          currentUserId={currentUserId}
+        />
+      )}
+
+      {post.quotedPostId && (
+        <div className="mt-2 rounded-md border border-black/10 dark:border-white/10 p-2 text-xs">
+          <span className="font-semibold">{post.quotedAuthorDisplayName}</span>
+          <span className="text-black/40 dark:text-white/40 ml-1">
+            @{post.quotedAuthorHandle}
+          </span>
+          <p className="mt-0.5 whitespace-pre-wrap break-words text-black/70 dark:text-white/70">
+            {post.quotedContent ?? "（元の投稿は削除されました）"}
+          </p>
+        </div>
+      )}
+
       <div className="mt-2 flex items-center gap-4">
         <button
           onClick={handleLike}
@@ -165,6 +224,15 @@ export function PostCard({
           <span>💬</span>
           <span>{commentCount}</span>
         </button>
+        {onQuote && currentUserId && (
+          <button
+            onClick={() => onQuote(post)}
+            className="flex items-center gap-1 text-xs text-black/50 dark:text-white/50"
+          >
+            <span>❝</span>
+            <span>引用</span>
+          </button>
+        )}
       </div>
       {showComments && (
         <CommentSection

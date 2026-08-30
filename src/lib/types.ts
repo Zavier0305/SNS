@@ -5,6 +5,8 @@ export type Profile = {
   createdAt: string;
 };
 
+export type PollOption = { label: string; votes: number };
+
 export type Post = {
   id: string;
   authorId: string;
@@ -19,6 +21,12 @@ export type Post = {
   likeCount: number;
   likedByMe: boolean;
   commentCount: number;
+  quotedPostId: string | null;
+  quotedContent: string | null;
+  quotedAuthorHandle: string | null;
+  quotedAuthorDisplayName: string | null;
+  pollOptions: string[] | null;
+  myPollVote: number | null;
 };
 
 export type Comment = {
