@@ -2,38 +2,24 @@
 
 import { useEffect, useState } from "react";
 import { SunIcon, MoonIcon } from "@/components/icons";
-
-const STORAGE_KEY = "sns.theme";
-
-function applyTheme(theme: "light" | "dark" | null) {
-  const root = document.documentElement;
-  root.classList.remove("light", "dark");
-  if (theme) root.classList.add(theme);
-}
+import { applyTheme, readStoredTheme, resolveTheme, THEME_STORAGE_KEY, type Theme } from "@/lib/theme";
 
 export function ThemeToggle() {
-  const [theme, setTheme] = useState<"light" | "dark" | null>(null);
+  const [theme, setTheme] = useState<Theme | null>(null);
 
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    const initial = stored === "light" || stored === "dark" ? stored : null;
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setTheme(initial);
-    applyTheme(initial);
+    setTheme(readStoredTheme());
   }, []);
 
   function toggle() {
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const currentIsDark = theme === "dark" || (theme === null && prefersDark);
-    const next = currentIsDark ? "light" : "dark";
+    const next: Theme = resolveTheme(theme) === "dark" ? "light" : "dark";
     setTheme(next);
     applyTheme(next);
-    localStorage.setItem(STORAGE_KEY, next);
+    localStorage.setItem(THEME_STORAGE_KEY, next);
   }
 
-  const prefersDark =
-    typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: dark)").matches;
-  const isDark = theme === "dark" || (theme === null && prefersDark);
+  const isDark = resolveTheme(theme) === "dark";
 
   return (
     <button

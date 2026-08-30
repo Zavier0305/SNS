@@ -141,14 +141,14 @@ export default function Home() {
               <Link
                 key={t.tag}
                 href={`/tag/${t.tag}`}
-                className="text-xs shrink-0 rounded-full bg-black/5 dark:bg-white/10 px-2 py-1 hover:underline"
+                className="gradient-pill text-xs font-medium shrink-0 px-2.5 py-1 hover:opacity-90"
               >
                 #{t.tag} ({t.count})
               </Link>
             ))}
           </div>
         )}
-        <div className="flex border-b border-black/10 dark:border-white/10">
+        <div className="flex gap-2 p-2 border-b border-black/10 dark:border-white/10">
           {(
             [
               { key: "recommended", label: "おすすめ" },
@@ -158,10 +158,10 @@ export default function Home() {
             <button
               key={tab.key}
               onClick={() => setFeed(tab.key)}
-              className={`flex-1 py-2 text-sm font-medium ${
+              className={`flex-1 rounded-full py-2 text-sm font-semibold transition-colors ${
                 feed === tab.key
-                  ? "border-b-2 border-foreground"
-                  : "text-black/50 dark:text-white/50"
+                  ? "bg-accent-discord text-white"
+                  : "text-black/50 dark:text-white/50 hover:bg-black/5 dark:hover:bg-white/10"
               }`}
             >
               {tab.label}

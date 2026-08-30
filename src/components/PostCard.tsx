@@ -296,14 +296,16 @@ export function PostCard({
   if (hidden) return null;
 
   return (
-    <article className="p-4 mx-2 sm:mx-3 mb-3 rounded-xl border border-black/10 dark:border-white/10 bg-background shadow-sm">
-      <div className="flex gap-3">
+    <article className="mx-2 sm:mx-3 mb-3 overflow-hidden rounded-2xl border border-black/10 dark:border-white/10 bg-background shadow-sm">
+      <div aria-hidden="true" className="h-1" style={{ background: "var(--gradient-mashup)" }} />
+      <div className="p-4 flex gap-3">
         <Link href={`/u/${post.authorHandle}`} className="shrink-0 mt-0.5">
           <Avatar
             name={post.authorDisplayName}
             handle={post.authorHandle}
             avatarUrl={post.authorAvatarUrl}
             className="h-10 w-10 text-sm"
+            ring
           />
         </Link>
         <div className="flex-1 min-w-0">
@@ -344,7 +346,11 @@ export function PostCard({
           {!isOwnPost && currentUserId && (
             <button
               onClick={handleFollow}
-              className="text-xs rounded-full border border-black/20 dark:border-white/20 px-2 py-0.5 hover:bg-black/5 dark:hover:bg-white/10"
+              className={`text-xs rounded-full px-2 py-0.5 font-medium transition-colors ${
+                following
+                  ? "border border-black/20 dark:border-white/20"
+                  : "gradient-pill"
+              }`}
             >
               {following ? "フォロー中" : "フォロー"}
             </button>
@@ -554,10 +560,10 @@ export function PostCard({
               disabled={!currentUserId}
               aria-label={liked ? "いいねを取り消す" : "いいねする"}
               aria-pressed={liked}
-              className={`flex items-center justify-center h-8 w-8 rounded-lg transition active:scale-75 ${
+              className={`flex items-center justify-center h-8 w-8 rounded-full transition active:scale-75 ${
                 liked
-                  ? "text-pink-500"
-                  : "text-black/50 dark:text-white/50 hover:bg-pink-500/10 hover:text-pink-500"
+                  ? "bg-accent-kakao text-accent-kakao-ink"
+                  : "text-black/50 dark:text-white/50 hover:bg-accent-kakao/20 hover:text-accent-kakao-ink dark:hover:text-accent-kakao"
               }`}
             >
               <HeartIcon
@@ -582,18 +588,18 @@ export function PostCard({
             aria-expanded={showComments}
             className="flex items-center gap-1 text-xs font-medium text-black/60 dark:text-white/60 transition active:scale-90"
           >
-            <span className="flex items-center justify-center h-8 w-8 rounded-lg hover:bg-blue-500/10 hover:text-blue-500 transition-colors">
+            <span className="flex items-center justify-center h-8 w-8 rounded-full hover:bg-accent-discord/10 hover:text-accent-discord transition-colors">
               <CommentIcon className="h-[18px] w-[18px]" />
             </span>
             {commentCount > 0 && <span>{commentCount}</span>}
           </button>
         </div>
-        <div className="flex items-center gap-0.5 rounded-lg border border-black/10 dark:border-white/10 p-0.5">
+        <div className="flex items-center gap-0.5 rounded-full border border-black/10 dark:border-white/10 p-0.5">
           {onQuote && currentUserId && (
             <button
               onClick={() => onQuote(post)}
               aria-label="引用して投稿"
-              className="flex items-center justify-center h-7 w-7 rounded-md text-black/50 dark:text-white/50 hover:bg-green-500/10 hover:text-green-500 transition active:scale-90"
+              className="flex items-center justify-center h-7 w-7 rounded-full text-black/50 dark:text-white/50 hover:bg-accent-line/10 hover:text-accent-line transition active:scale-90"
             >
               <RepostIcon className="h-4 w-4" />
             </button>
@@ -603,10 +609,10 @@ export function PostCard({
               onClick={handleBookmark}
               aria-label={bookmarked ? "ブックマークを解除" : "ブックマークする"}
               aria-pressed={bookmarked}
-              className={`flex items-center justify-center h-7 w-7 rounded-md transition active:scale-90 ${
+              className={`flex items-center justify-center h-7 w-7 rounded-full transition active:scale-90 ${
                 bookmarked
-                  ? "text-blue-500"
-                  : "text-black/50 dark:text-white/50 hover:bg-blue-500/10 hover:text-blue-500"
+                  ? "text-accent-discord"
+                  : "text-black/50 dark:text-white/50 hover:bg-accent-discord/10 hover:text-accent-discord"
               }`}
             >
               {bookmarked ? (
@@ -619,7 +625,7 @@ export function PostCard({
           <button
             onClick={handleShare}
             aria-label="共有する"
-            className="flex items-center justify-center h-7 w-7 rounded-md text-black/50 dark:text-white/50 hover:bg-black/5 dark:hover:bg-white/10 transition active:scale-90"
+            className="flex items-center justify-center h-7 w-7 rounded-full text-black/50 dark:text-white/50 hover:bg-black/5 dark:hover:bg-white/10 transition active:scale-90"
           >
             <ShareIcon className="h-4 w-4" />
           </button>

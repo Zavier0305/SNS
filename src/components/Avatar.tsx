@@ -22,28 +22,27 @@ export function Avatar({
   handle,
   avatarUrl,
   className = "h-10 w-10 text-sm",
+  ring = false,
 }: {
   name: string;
   handle: string;
   avatarUrl?: string | null;
   className?: string;
+  /** Instagram-story-style gradient ring around the avatar */
+  ring?: boolean;
 }) {
   const seed = handle || name || "?";
   const initial = (name || handle || "?").trim().charAt(0).toUpperCase();
 
-  if (avatarUrl) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={avatarUrl}
-        alt=""
-        aria-hidden="true"
-        className={`shrink-0 rounded-full object-cover ${className}`}
-      />
-    );
-  }
-
-  return (
+  const inner = avatarUrl ? (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={avatarUrl}
+      alt=""
+      aria-hidden="true"
+      className={`shrink-0 rounded-full object-cover ${className}`}
+    />
+  ) : (
     <span
       aria-hidden="true"
       style={{ backgroundColor: colorForHandle(seed) }}
@@ -52,4 +51,7 @@ export function Avatar({
       {initial}
     </span>
   );
+
+  if (!ring) return inner;
+  return <span className="gradient-ring">{inner}</span>;
 }

@@ -59,12 +59,12 @@ export function Sidebar() {
         <Link
           href="/"
           title="SNS"
-          className="flex h-10 w-10 items-center justify-center rounded-full text-lg font-bold hover:bg-black/5 dark:hover:bg-white/10"
+          className="gradient-pill flex h-10 w-10 items-center justify-center text-lg font-bold hover:opacity-90 transition-opacity"
         >
           S
         </Link>
 
-        <nav className="mt-3 flex flex-col items-center gap-1" aria-label="メインナビゲーション">
+        <nav className="mt-3 flex flex-col items-center gap-1.5" aria-label="メインナビゲーション">
           {RAIL_ITEMS.map((item) => {
             const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
             return (
@@ -74,15 +74,15 @@ export function Sidebar() {
                 title={item.label}
                 aria-label={item.label}
                 aria-current={active ? "page" : undefined}
-                className={`relative flex h-11 w-11 items-center justify-center rounded-full transition-colors ${
+                className={`relative flex h-11 w-11 items-center justify-center rounded-2xl transition-colors ${
                   active
-                    ? "bg-foreground/[0.08] dark:bg-foreground/15 text-foreground"
+                    ? "bg-accent-discord text-white shadow-sm"
                     : "text-black/60 dark:text-white/60 hover:bg-black/5 dark:hover:bg-white/10"
                 }`}
               >
                 <item.Icon className="h-5 w-5" />
                 {item.badge && count > 0 && (
-                  <span className="absolute top-1 right-1 min-w-[16px] h-4 rounded-full bg-red-500 text-white text-[9px] flex items-center justify-center px-1">
+                  <span className="absolute top-1 right-1 min-w-[16px] h-4 rounded-full bg-accent-kakao text-accent-kakao-ink text-[9px] font-bold flex items-center justify-center px-1">
                     {count > 9 ? "9+" : count}
                   </span>
                 )}
@@ -93,7 +93,7 @@ export function Sidebar() {
             href={composeTarget}
             title="投稿する"
             aria-label="投稿する"
-            className="flex h-11 w-11 items-center justify-center rounded-full bg-foreground text-background hover:opacity-90 transition-opacity"
+            className="gradient-pill flex h-11 w-11 items-center justify-center hover:opacity-90 transition-opacity shadow-sm"
           >
             <PlusIcon className="h-5 w-5" />
           </Link>
@@ -105,7 +105,7 @@ export function Sidebar() {
             title="メニュー"
             aria-label="メニューを開く"
             aria-expanded={drawerOpen}
-            className="flex h-11 w-11 items-center justify-center rounded-full text-black/60 dark:text-white/60 hover:bg-black/5 dark:hover:bg-white/10"
+            className="flex h-11 w-11 items-center justify-center rounded-2xl text-black/60 dark:text-white/60 hover:bg-black/5 dark:hover:bg-white/10"
           >
             <MenuIcon className="h-5 w-5" />
           </button>
@@ -119,7 +119,8 @@ export function Sidebar() {
               name={profile.displayName}
               handle={profile.handle}
               avatarUrl={profile.avatarUrl}
-              className="h-10 w-10 text-sm"
+              className="h-9 w-9 text-sm"
+              ring
             />
           </Link>
         </div>
@@ -157,9 +158,9 @@ export function Sidebar() {
                     href={item.href}
                     onClick={() => setDrawerOpen(false)}
                     aria-current={active ? "page" : undefined}
-                    className={`flex items-center gap-3 rounded-md px-3 py-2.5 text-[15px] transition-colors ${
+                    className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] transition-colors ${
                       active
-                        ? "bg-foreground/[0.06] dark:bg-foreground/10 font-semibold"
+                        ? "bg-accent-discord/10 text-accent-discord dark:text-accent-discord font-semibold"
                         : "text-black/70 dark:text-white/70 hover:bg-black/5 dark:hover:bg-white/10"
                     }`}
                   >

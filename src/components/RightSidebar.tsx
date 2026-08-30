@@ -9,42 +9,79 @@ export function RightSidebar() {
 
   return (
     <aside className="hidden lg:flex lg:flex-col lg:w-72 lg:shrink-0 lg:h-screen lg:sticky lg:top-0 gap-4 px-4 py-4">
-      <div className="rounded-xl border border-black/10 dark:border-white/10 p-4">
-        <h2 className="text-sm font-semibold mb-3">トレンド</h2>
+      <div className="rounded-2xl border border-black/10 dark:border-white/10 p-4">
+        <h2 className="text-sm font-semibold mb-3 flex items-center gap-1.5">
+          <span aria-hidden="true">🏆</span>
+          みんなのトレンドランキング
+        </h2>
         {tags.length === 0 ? (
           <p className="text-xs text-black/40 dark:text-white/40">まだトレンドはありません</p>
         ) : (
-          <div className="flex flex-col gap-2.5">
-            {tags.slice(0, 8).map((t) => (
-              <Link
-                key={t.tag}
-                href={`/tag/${t.tag}`}
-                className="flex items-baseline justify-between text-sm hover:underline"
-              >
-                <span className="text-blue-500 truncate">#{t.tag}</span>
-                <span className="shrink-0 text-xs text-black/40 dark:text-white/40">
-                  {t.count}件
-                </span>
-              </Link>
+          <ol className="flex flex-col gap-2.5">
+            {tags.slice(0, 8).map((t, i) => (
+              <li key={t.tag}>
+                <Link
+                  href={`/tag/${t.tag}`}
+                  className="flex items-center gap-2 text-sm hover:underline"
+                >
+                  <span
+                    className={`rank-medal ${
+                      i === 0
+                        ? "rank-medal-1"
+                        : i === 1
+                          ? "rank-medal-2"
+                          : i === 2
+                            ? "rank-medal-3"
+                            : "rank-medal-plain"
+                    }`}
+                  >
+                    {i + 1}
+                  </span>
+                  <span className="text-accent-discord truncate flex-1">#{t.tag}</span>
+                  <span className="shrink-0 text-xs text-black/40 dark:text-white/40">
+                    {t.count}件
+                  </span>
+                </Link>
+              </li>
             ))}
-          </div>
+          </ol>
         )}
       </div>
-      <div className="rounded-xl border border-black/10 dark:border-white/10 p-4 flex flex-col gap-2.5 text-sm">
-        <Link href="/explore" className="flex items-center gap-2 hover:underline">
-          <SparkleIcon className="h-4 w-4 text-black/40 dark:text-white/40" />
+      <div className="rounded-2xl border border-black/10 dark:border-white/10 p-4 flex flex-col gap-1 text-sm">
+        <Link
+          href="/explore"
+          className="flex items-center gap-2.5 rounded-xl px-2 py-1.5 hover:bg-accent-insta-2/10"
+        >
+          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-accent-insta-2/15 text-accent-insta-2">
+            <SparkleIcon className="h-4 w-4" />
+          </span>
           発見
         </Link>
-        <Link href="/servers" className="flex items-center gap-2 hover:underline">
-          <ServersIcon className="h-4 w-4 text-black/40 dark:text-white/40" />
+        <Link
+          href="/servers"
+          className="flex items-center gap-2.5 rounded-xl px-2 py-1.5 hover:bg-accent-discord/10"
+        >
+          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-accent-discord/15 text-accent-discord">
+            <ServersIcon className="h-4 w-4" />
+          </span>
           サーバー一覧
         </Link>
-        <Link href="/battle" className="flex items-center gap-2 hover:underline">
-          <BattleIcon className="h-4 w-4 text-black/40 dark:text-white/40" />
+        <Link
+          href="/battle"
+          className="flex items-center gap-2.5 rounded-xl px-2 py-1.5 hover:bg-accent-forum/10"
+        >
+          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-accent-forum/15 text-accent-forum">
+            <BattleIcon className="h-4 w-4" />
+          </span>
           バトル履歴
         </Link>
-        <Link href="/admin" className="flex items-center gap-2 hover:underline">
-          <SettingsIcon className="h-4 w-4 text-black/40 dark:text-white/40" />
+        <Link
+          href="/admin"
+          className="flex items-center gap-2.5 rounded-xl px-2 py-1.5 hover:bg-black/5 dark:hover:bg-white/10"
+        >
+          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-black/5 dark:bg-white/10 text-black/50 dark:text-white/50">
+            <SettingsIcon className="h-4 w-4" />
+          </span>
           管理ダッシュボード
         </Link>
       </div>

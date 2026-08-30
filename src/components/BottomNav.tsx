@@ -42,7 +42,7 @@ export function BottomNav() {
         <item.Icon className="h-5 w-5" />
         {item.label}
         {item.badge && count > 0 && (
-          <span className="absolute top-1 right-[calc(50%-16px)] min-w-[14px] h-[14px] rounded-full bg-red-500 text-white text-[9px] flex items-center justify-center px-0.5">
+          <span className="absolute top-1 right-[calc(50%-16px)] min-w-[14px] h-[14px] rounded-full bg-accent-kakao text-accent-kakao-ink text-[9px] font-bold flex items-center justify-center px-0.5">
             {count > 9 ? "9+" : count}
           </span>
         )}
@@ -61,7 +61,7 @@ export function BottomNav() {
         aria-label="投稿する"
         className="flex-1 flex items-center justify-center py-2"
       >
-        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-foreground text-background -translate-y-1 shadow transition active:scale-90">
+        <span className="gradient-pill flex h-10 w-10 items-center justify-center -translate-y-1 shadow transition active:scale-90">
           <PlusIcon className="h-5 w-5" />
         </span>
       </Link>

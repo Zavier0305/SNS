@@ -198,13 +198,14 @@ export function PostForm({
           setExpanded(true);
           requestAnimationFrame(() => textareaRef.current?.focus());
         }}
-        className="flex w-full items-center gap-3 mx-2 sm:mx-3 mb-3 p-3 rounded-xl border border-black/10 dark:border-white/10 bg-background text-left shadow-sm hover:bg-black/5 dark:hover:bg-white/[0.06] transition-colors"
+        className="flex w-full items-center gap-3 mx-2 sm:mx-3 mb-3 p-3 rounded-2xl border border-black/10 dark:border-white/10 bg-background text-left shadow-sm hover:bg-black/5 dark:hover:bg-white/[0.06] transition-colors"
       >
         <Avatar
           name={profile?.displayName ?? ""}
           handle={profile?.handle ?? ""}
           avatarUrl={profile?.avatarUrl}
           className="h-9 w-9 text-sm"
+          ring
         />
         <span className="text-sm text-black/40 dark:text-white/40">いまどうしてる？</span>
       </button>
@@ -215,7 +216,7 @@ export function PostForm({
     <form
       ref={formRef}
       onSubmit={handleSubmit}
-      className="flex flex-col gap-2 mx-2 sm:mx-3 mb-3 p-4 rounded-xl border border-black/10 dark:border-white/10 bg-background shadow-sm"
+      className="flex flex-col gap-2 mx-2 sm:mx-3 mb-3 p-4 rounded-2xl border border-black/10 dark:border-white/10 bg-background shadow-sm"
     >
       {!quotedPost && !content && images.length === 0 && !pollOptions && (
         <div className="flex justify-end -mt-1 -mr-1">
@@ -254,7 +255,7 @@ export function PostForm({
         placeholder="いまどうしてる？（Ctrl/Cmd+Enterで投稿）"
         rows={3}
         maxLength={MAX_CONTENT_LENGTH}
-        className="resize-none rounded-md border border-black/10 dark:border-white/20 bg-transparent p-2 text-sm outline-none focus:border-black/30 dark:focus:border-white/40"
+        className="resize-none rounded-2xl border border-black/10 dark:border-white/20 bg-black/[0.02] dark:bg-white/[0.03] p-3 text-sm outline-none focus:border-accent-discord/50"
       />
       <span
         className={`self-end text-[10px] ${
@@ -370,7 +371,7 @@ export function PostForm({
           <button
             type="submit"
             disabled={!content.trim() || submitting || cooldownSeconds > 0}
-            className="rounded-full bg-foreground text-background px-4 py-1.5 text-sm font-medium disabled:opacity-40 transition active:scale-95"
+            className="gradient-pill px-4 py-1.5 text-sm font-semibold disabled:opacity-40 transition active:scale-95"
           >
             {submitting ? "投稿中..." : "投稿する"}
           </button>

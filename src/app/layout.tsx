@@ -8,6 +8,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { RightSidebar } from "@/components/RightSidebar";
 import { BottomNav } from "@/components/BottomNav";
 import { OnboardingWelcome } from "@/components/OnboardingWelcome";
+import { ThemeInit } from "@/components/ThemeInit";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -42,6 +43,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full pb-14 sm:pb-0">
+        <ThemeInit />
         <ToastProvider>
           <ConfirmProvider>
             <AuthProvider>
