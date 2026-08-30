@@ -122,6 +122,7 @@ export function PostCard({
   onPinChange,
   highlightWords,
   index,
+  defaultShowComments,
 }: {
   post: Post;
   currentUserId: string | null;
@@ -134,12 +135,14 @@ export function PostCard({
   highlightWords?: string[];
   /** position within the current list, rendered as a Chiebukuro-style numbered marker */
   index?: number;
+  /** show the comment thread expanded by default, for the standalone thread view */
+  defaultShowComments?: boolean;
 }) {
   const [liked, setLiked] = useState(post.likedByMe);
   const [likeCount, setLikeCount] = useState(post.likeCount);
   const [commentCount, setCommentCount] = useState(post.commentCount);
   const [following, setFollowing] = useState(isFollowing);
-  const [showComments, setShowComments] = useState(false);
+  const [showComments, setShowComments] = useState(!!defaultShowComments);
   const [deleting, setDeleting] = useState(false);
   const [hidden, setHidden] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);

@@ -28,12 +28,14 @@ export function PostForm({
   quotedPost,
   onCancelQuote,
   channelId,
+  startExpanded = false,
 }: {
   authorId: string;
   onPosted?: () => void;
   quotedPost?: Post | null;
   onCancelQuote?: () => void;
   channelId?: string | null;
+  startExpanded?: boolean;
 }) {
   const draftKey = `sns.draft.${channelId ?? "global"}`;
   const [content, setContent] = useState("");
@@ -42,7 +44,7 @@ export function PostForm({
   const [isSensitive, setIsSensitive] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
-  const [expanded, setExpanded] = useState(!!quotedPost);
+  const [expanded, setExpanded] = useState(startExpanded || !!quotedPost);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -218,7 +220,7 @@ export function PostForm({
       onSubmit={handleSubmit}
       className="flex flex-col gap-2 mx-2 sm:mx-3 mb-3 p-4 rounded-2xl border border-black/10 dark:border-white/10 bg-background shadow-sm"
     >
-      {!quotedPost && !content && images.length === 0 && !pollOptions && (
+      {!startExpanded && !quotedPost && !content && images.length === 0 && !pollOptions && (
         <div className="flex justify-end -mt-1 -mr-1">
           <button
             type="button"

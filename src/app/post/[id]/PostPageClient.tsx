@@ -6,12 +6,14 @@ import { useAuth } from "@/lib/auth-context";
 import { fetchPostsByIds, useFollowingIds } from "@/lib/posts-store";
 import { PostCard } from "@/components/PostCard";
 import { PostListSkeleton } from "@/components/PostCardSkeleton";
+import { ComposeModal } from "@/components/ComposeModal";
 import type { Post } from "@/lib/types";
 
 export function PostPageClient({ postId }: { postId: string }) {
   const { profile, checked } = useAuth();
   const router = useRouter();
   const [post, setPost] = useState<Post | null | undefined>(undefined);
+  const [quotedPost, setQuotedPost] = useState<Post | null>(null);
   const { followingIds } = useFollowingIds(profile?.id ?? null);
 
   useEffect(() => {
@@ -46,9 +48,19 @@ export function PostPageClient({ postId }: { postId: string }) {
             currentUserId={profile.id}
             isFollowing={followingIds.has(post.authorId)}
             onDeleted={() => router.push("/")}
+            onQuote={setQuotedPost}
+            defaultShowComments
           />
         )}
       </main>
+      {quotedPost && (
+        <ComposeModal
+          authorId={profile.id}
+          onPosted={refresh}
+          quotedPost={quotedPost}
+          onClose={() => setQuotedPost(null)}
+        />
+      )}
     </>
   );
 }

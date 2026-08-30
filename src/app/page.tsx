@@ -4,13 +4,13 @@ import { useEffect, useRef, useState, type TouchEvent as ReactTouchEvent } from 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { useFollowingIds, usePosts } from "@/lib/posts-store";
+import { usePosts } from "@/lib/posts-store";
 import { useTrendingTags } from "@/lib/discovery-store";
-import { PostForm } from "@/components/PostForm";
-import { PostCard } from "@/components/PostCard";
+import { ComposeModal } from "@/components/ComposeModal";
+import { PostRow } from "@/components/PostRow";
 import { PostListSkeleton } from "@/components/PostCardSkeleton";
-import { SearchIcon, ServersIcon } from "@/components/icons";
-import type { FeedKind, Post } from "@/lib/types";
+import { SearchIcon, ServersIcon, PlusIcon } from "@/components/icons";
+import type { FeedKind } from "@/lib/types";
 
 function dateLabel(iso: string): string {
   const date = new Date(iso);
@@ -26,13 +26,12 @@ export default function Home() {
   const { profile, checked } = useAuth();
   const router = useRouter();
   const [feed, setFeed] = useState<FeedKind>("recommended");
-  const [quotedPost, setQuotedPost] = useState<Post | null>(null);
+  const [composeOpen, setComposeOpen] = useState(false);
   const userId = profile?.id ?? null;
   const { posts, loading, refresh, hasNew, loadMore, loadingMore, hasMore } = usePosts(
     feed,
     userId,
   );
-  const { followingIds, refresh: refreshFollowing } = useFollowingIds(userId);
   const { tags } = useTrendingTags();
   const sentinelRef = useRef<HTMLDivElement>(null);
   const mainRef = useRef<HTMLElement>(null);
@@ -66,11 +65,6 @@ export default function Home() {
   }, [pullRefreshing, loading]);
 
   if (!checked || !profile) return null;
-
-  function handleFollowChange() {
-    refreshFollowing();
-    if (feed === "following") refresh();
-  }
 
   function handleTouchStart(e: ReactTouchEvent) {
     if (pullRefreshing || (mainRef.current?.scrollTop ?? 0) > 0) {
@@ -161,14 +155,20 @@ export default function Home() {
             ))}
           </div>
         )}
-        <div className="pt-3">
-          <PostForm
+        <button
+          onClick={() => setComposeOpen(true)}
+          className="flex w-full items-center gap-2 px-4 py-2.5 border-b border-black/10 dark:border-white/10 text-sm text-black/40 dark:text-white/40 hover:bg-black/[0.03] dark:hover:bg-white/[0.05] transition-colors"
+        >
+          <PlusIcon className="h-4 w-4" />
+          いまどうしてる？
+        </button>
+        {composeOpen && (
+          <ComposeModal
             authorId={profile.id}
             onPosted={refresh}
-            quotedPost={quotedPost}
-            onCancelQuote={() => setQuotedPost(null)}
+            onClose={() => setComposeOpen(false)}
           />
-        </div>
+        )}
         {hasNew && (
           <button
             onClick={refresh}
@@ -196,15 +196,7 @@ export default function Home() {
                     {label}
                   </div>
                 )}
-                <PostCard
-                  post={post}
-                  currentUserId={userId}
-                  isFollowing={followingIds.has(post.authorId)}
-                  onFollowChange={handleFollowChange}
-                  onDeleted={refresh}
-                  onQuote={setQuotedPost}
-                  index={i}
-                />
+                <PostRow post={post} index={i} />
               </div>
             );
           })
