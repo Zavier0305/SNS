@@ -1,28 +1,8 @@
 "use client";
 
 import { supabase } from "@/lib/supabase/client";
+import { PROFILE_COLUMNS, toProfile, fetchProfilesByIds } from "@/lib/profile-mapper";
 import type { Profile } from "@/lib/types";
-
-async function fetchProfilesByIds(ids: string[]): Promise<Profile[]> {
-  if (ids.length === 0) return [];
-  const { data } = await supabase
-    .from("sns_profiles")
-    .select(
-      "id, handle, display_name, created_at, theme_color, bio, cover_url, avatar_url, pinned_post_id",
-    )
-    .in("id", ids);
-  return (data ?? []).map((row) => ({
-    id: row.id,
-    handle: row.handle,
-    displayName: row.display_name,
-    createdAt: row.created_at,
-    themeColor: row.theme_color,
-    bio: row.bio,
-    coverUrl: row.cover_url,
-    avatarUrl: row.avatar_url,
-    pinnedPostId: row.pinned_post_id,
-  }));
-}
 
 export async function fetchFollowingProfiles(userId: string): Promise<Profile[]> {
   const { data } = await supabase
@@ -54,25 +34,13 @@ export async function fetchSuggestedProfiles(userId: string, limit = 5): Promise
   ]);
   const { data } = await supabase
     .from("sns_profiles")
-    .select(
-      "id, handle, display_name, created_at, theme_color, bio, cover_url, avatar_url, pinned_post_id",
-    )
+    .select(PROFILE_COLUMNS)
     .order("created_at", { ascending: false })
     .limit(limit + excluded.size);
   return (data ?? [])
     .filter((row) => !excluded.has(row.id))
     .slice(0, limit)
-    .map((row) => ({
-      id: row.id,
-      handle: row.handle,
-      displayName: row.display_name,
-      createdAt: row.created_at,
-      themeColor: row.theme_color,
-      bio: row.bio,
-      coverUrl: row.cover_url,
-      avatarUrl: row.avatar_url,
-      pinnedPostId: row.pinned_post_id,
-    }));
+    .map(toProfile);
 }
 
 export async function fetchFollowCounts(

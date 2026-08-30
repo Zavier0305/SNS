@@ -12,7 +12,7 @@ export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 type FeedRow = Database["public"]["Views"]["sns_feed"]["Row"];
 
-function hotScore(likeCount: number, commentCount: number, createdAt: string): number {
+export function hotScore(likeCount: number, commentCount: number, createdAt: string): number {
   const hoursSincePost =
     (Date.now() - new Date(createdAt).getTime()) / (1000 * 60 * 60);
   return (likeCount + commentCount * 2) / Math.pow(Math.max(hoursSincePost, 0) + 2, 1.5);

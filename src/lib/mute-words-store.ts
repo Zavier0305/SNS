@@ -31,5 +31,5 @@ export async function removeMuteWord(userId: string, word: string) {
 export function postMatchesMuteWords(content: string, words: string[]): boolean {
   if (words.length === 0) return false;
   const lower = content.toLowerCase();
-  return words.some((w) => lower.includes(w));
+  return words.some((w) => lower.includes(w.toLowerCase()));
 }

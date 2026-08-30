@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { supabase } from "@/lib/supabase/client";
+import { PROFILE_COLUMNS, toProfile } from "@/lib/profile-mapper";
 import type { NotificationPrefs, Profile } from "@/lib/types";
 
 type AuthContextValue = {
@@ -34,36 +35,10 @@ function handleLoginEmail(handle: string) {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-function toProfile(row: {
-  id: string;
-  handle: string;
-  display_name: string;
-  created_at: string;
-  theme_color: string | null;
-  bio: string | null;
-  cover_url: string | null;
-  avatar_url: string | null;
-  pinned_post_id: string | null;
-}): Profile {
-  return {
-    id: row.id,
-    handle: row.handle,
-    displayName: row.display_name,
-    createdAt: row.created_at,
-    themeColor: row.theme_color,
-    bio: row.bio,
-    coverUrl: row.cover_url,
-    avatarUrl: row.avatar_url,
-    pinnedPostId: row.pinned_post_id,
-  };
-}
-
 async function fetchProfile(userId: string): Promise<Profile | null> {
   const { data } = await supabase
     .from("sns_profiles")
-    .select(
-      "id, handle, display_name, created_at, theme_color, bio, cover_url, avatar_url, pinned_post_id",
-    )
+    .select(PROFILE_COLUMNS)
     .eq("id", userId)
     .single();
   return data ? toProfile(data) : null;

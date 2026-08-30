@@ -1,7 +1,10 @@
 "use client";
 
 import { POST_IMAGE_BUCKET, supabase } from "@/lib/supabase/client";
+import { PROFILE_COLUMNS, toProfile, fetchProfilesByIds } from "@/lib/profile-mapper";
 import type { NotificationPrefs, Profile } from "@/lib/types";
+
+export { fetchProfilesByIds };
 
 export const MAX_COVER_IMAGE_BYTES = 5 * 1024 * 1024;
 export const MAX_AVATAR_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -28,33 +31,6 @@ export async function uploadAvatarImage(userId: string, file: File): Promise<str
   return supabase.storage.from(POST_IMAGE_BUCKET).getPublicUrl(path).data.publicUrl;
 }
 
-const PROFILE_COLUMNS =
-  "id, handle, display_name, created_at, theme_color, bio, cover_url, avatar_url, pinned_post_id";
-
-function toProfile(row: {
-  id: string;
-  handle: string;
-  display_name: string;
-  created_at: string;
-  theme_color: string | null;
-  bio: string | null;
-  cover_url: string | null;
-  avatar_url: string | null;
-  pinned_post_id: string | null;
-}): Profile {
-  return {
-    id: row.id,
-    handle: row.handle,
-    displayName: row.display_name,
-    createdAt: row.created_at,
-    themeColor: row.theme_color,
-    bio: row.bio,
-    coverUrl: row.cover_url,
-    avatarUrl: row.avatar_url,
-    pinnedPostId: row.pinned_post_id,
-  };
-}
-
 export async function searchProfiles(query: string): Promise<Profile[]> {
   const trimmed = query.trim();
   if (!trimmed) return [];
@@ -63,16 +39,6 @@ export async function searchProfiles(query: string): Promise<Profile[]> {
     .select(PROFILE_COLUMNS)
     .or(`handle.ilike.%${trimmed}%,display_name.ilike.%${trimmed}%`)
     .limit(20);
-  return (data ?? []).map(toProfile);
-}
-
-export async function fetchProfilesByIds(ids: string[]): Promise<Profile[]> {
-  const uniqueIds = [...new Set(ids)];
-  if (uniqueIds.length === 0) return [];
-  const { data } = await supabase
-    .from("sns_profiles")
-    .select(PROFILE_COLUMNS)
-    .in("id", uniqueIds);
   return (data ?? []).map(toProfile);
 }
 
