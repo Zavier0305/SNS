@@ -123,6 +123,7 @@ export type Database = {
           expire_at: string
           id: string
           image_url: string | null
+          image_urls: string[] | null
           is_hidden: boolean
           is_pinned: boolean
           is_preserved: boolean
@@ -137,6 +138,7 @@ export type Database = {
           expire_at?: string
           id?: string
           image_url?: string | null
+          image_urls?: string[] | null
           is_hidden?: boolean
           is_pinned?: boolean
           is_preserved?: boolean
@@ -151,12 +153,57 @@ export type Database = {
           expire_at?: string
           id?: string
           image_url?: string | null
+          image_urls?: string[] | null
           is_hidden?: boolean
           is_pinned?: boolean
           is_preserved?: boolean
           poll_options?: Json | null
           quoted_post_id?: string | null
         }
+        Relationships: []
+      }
+      sns_notifications: {
+        Row: {
+          actor_id: string
+          created_at: string
+          id: string
+          post_id: string | null
+          read_at: string | null
+          type: string
+          user_id: string
+        }
+        Insert: {
+          actor_id: string
+          created_at?: string
+          id?: string
+          post_id?: string | null
+          read_at?: string | null
+          type: string
+          user_id: string
+        }
+        Update: {
+          actor_id?: string
+          created_at?: string
+          id?: string
+          post_id?: string | null
+          read_at?: string | null
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sns_notifications_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "sns_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sns_reactions: {
+        Row: { created_at: string; emoji: string; post_id: string; user_id: string }
+        Insert: { created_at?: string; emoji: string; post_id: string; user_id: string }
+        Update: { created_at?: string; emoji?: string; post_id?: string; user_id?: string }
         Relationships: []
       }
       sns_profiles: {
@@ -261,6 +308,7 @@ export type Database = {
           expire_at: string | null
           id: string | null
           image_url: string | null
+          image_urls: string[] | null
           is_hidden: boolean | null
           is_pinned: boolean | null
           is_preserved: boolean | null

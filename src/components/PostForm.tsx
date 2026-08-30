@@ -1,11 +1,13 @@
 "use client";
 
 import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
-import { addPost, MAX_IMAGE_BYTES } from "@/lib/posts-store";
+import { addPost, MAX_IMAGE_BYTES, MAX_IMAGES_PER_POST } from "@/lib/posts-store";
 import { useToast } from "@/lib/toast-context";
 import type { Post } from "@/lib/types";
 
 const MAX_POLL_OPTIONS = 4;
+
+type ImageEntry = { file: File; previewUrl: string };
 
 export function PostForm({
   authorId,
@@ -21,27 +23,39 @@ export function PostForm({
   channelId?: string | null;
 }) {
   const [content, setContent] = useState("");
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [images, setImages] = useState<ImageEntry[]>([]);
   const [pollOptions, setPollOptions] = useState<string[] | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { showToast } = useToast();
 
   function handleImageChange(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0] ?? null;
-    if (file && file.size > MAX_IMAGE_BYTES) {
-      showToast("画像は5MB以下にしてください", "error");
-      clearImage();
+    const files = Array.from(e.target.files ?? []);
+    if (files.length === 0) return;
+    if (images.length + files.length > MAX_IMAGES_PER_POST) {
+      showToast(`画像は最大${MAX_IMAGES_PER_POST}枚までです`, "error");
+      if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
-    setImageFile(file);
-    setImagePreview(file ? URL.createObjectURL(file) : null);
+    const oversized = files.find((f) => f.size > MAX_IMAGE_BYTES);
+    if (oversized) {
+      showToast("画像は5MB以下にしてください", "error");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+    setImages((current) => [
+      ...current,
+      ...files.map((file) => ({ file, previewUrl: URL.createObjectURL(file) })),
+    ]);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
-  function clearImage() {
-    setImageFile(null);
-    setImagePreview(null);
+  function removeImage(index: number) {
+    setImages((current) => current.filter((_, i) => i !== index));
+  }
+
+  function clearImages() {
+    setImages([]);
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
@@ -66,13 +80,18 @@ export function PostForm({
     }
     setSubmitting(true);
     try {
-      await addPost(authorId, trimmed, imageFile, {
-        quotedPostId: quotedPost?.id ?? null,
-        pollOptions: pollOptions ? validPollOptions : null,
-        channelId: channelId ?? null,
-      });
+      await addPost(
+        authorId,
+        trimmed,
+        images.map((i) => i.file),
+        {
+          quotedPostId: quotedPost?.id ?? null,
+          pollOptions: pollOptions ? validPollOptions : null,
+          channelId: channelId ?? null,
+        },
+      );
       setContent("");
-      clearImage();
+      clearImages();
       setPollOptions(null);
       showToast("投稿しました");
       onCancelQuote?.();
@@ -114,21 +133,25 @@ export function PostForm({
         maxLength={280}
         className="resize-none rounded-md border border-black/10 dark:border-white/20 bg-transparent p-2 text-sm outline-none focus:border-black/30 dark:focus:border-white/40"
       />
-      {imagePreview && (
-        <div className="relative w-fit">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={imagePreview}
-            alt=""
-            className="max-h-40 rounded-lg object-cover"
-          />
-          <button
-            type="button"
-            onClick={clearImage}
-            className="absolute -top-2 -right-2 rounded-full bg-black/70 text-white text-xs w-5 h-5 flex items-center justify-center"
-          >
-            ×
-          </button>
+      {images.length > 0 && (
+        <div className="flex gap-2 flex-wrap">
+          {images.map((img, i) => (
+            <div key={i} className="relative w-fit">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={img.previewUrl}
+                alt=""
+                className="max-h-28 rounded-lg object-cover"
+              />
+              <button
+                type="button"
+                onClick={() => removeImage(i)}
+                className="absolute -top-2 -right-2 rounded-full bg-black/70 text-white text-xs w-5 h-5 flex items-center justify-center"
+              >
+                ×
+              </button>
+            </div>
+          ))}
         </div>
       )}
       {pollOptions && (
@@ -166,11 +189,12 @@ export function PostForm({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <label className="text-xs text-black/60 dark:text-white/60 cursor-pointer hover:underline">
-            画像を追加
+            画像を追加（最大{MAX_IMAGES_PER_POST}枚）
             <input
               ref={fileInputRef}
               type="file"
               accept="image/*"
+              multiple
               onChange={handleImageChange}
               className="hidden"
             />

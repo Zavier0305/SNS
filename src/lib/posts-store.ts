@@ -28,7 +28,7 @@ function toPost(
     authorHandle: row.author_handle ?? "",
     authorDisplayName: row.author_display_name ?? "名無しさん",
     content: row.content ?? "",
-    imageUrl: row.image_url,
+    imageUrls: row.image_urls ?? (row.image_url ? [row.image_url] : []),
     createdAt: row.created_at ?? new Date().toISOString(),
     expireAt: row.expire_at ?? new Date().toISOString(),
     isPreserved: row.is_preserved ?? false,
@@ -239,9 +239,11 @@ export async function deletePost(postId: string, authorId: string) {
 export function usePosts(feed: FeedKind, userId: string | null) {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasNew, setHasNew] = useState(false);
 
   const refresh = useCallback(() => {
     setLoading(true);
+    setHasNew(false);
     fetchPosts(feed, userId)
       .then(setPosts)
       .finally(() => setLoading(false));
@@ -253,43 +255,76 @@ export function usePosts(feed: FeedKind, userId: string | null) {
     refresh();
   }, [refresh]);
 
-  return { posts, loading, refresh };
+  useEffect(() => {
+    const channel = supabase
+      .channel(`sns_posts_feed_${feed}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "sns_posts" },
+        (payload) => {
+          const row = payload.new as { channel_id: string | null };
+          if (row.channel_id === null) setHasNew(true);
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [feed]);
+
+  return { posts, loading, refresh, hasNew };
+}
+
+export const MAX_IMAGES_PER_POST = 4;
+
+async function uploadImages(authorId: string, imageFiles: File[]): Promise<string[]> {
+  const urls: string[] = [];
+  for (const file of imageFiles) {
+    if (file.size > MAX_IMAGE_BYTES) {
+      throw new Error("画像は5MB以下にしてください");
+    }
+    const ext = file.name.split(".").pop() ?? "jpg";
+    const path = `${authorId}/${crypto.randomUUID()}.${ext}`;
+    const { error: uploadError } = await supabase.storage
+      .from(POST_IMAGE_BUCKET)
+      .upload(path, file);
+    if (uploadError) throw uploadError;
+    urls.push(
+      supabase.storage.from(POST_IMAGE_BUCKET).getPublicUrl(path).data.publicUrl,
+    );
+  }
+  return urls;
 }
 
 export async function addPost(
   authorId: string,
   content: string,
-  imageFile: File | null,
+  imageFiles: File[],
   options?: {
     quotedPostId?: string | null;
     pollOptions?: string[] | null;
     channelId?: string | null;
   },
 ) {
-  let imageUrl: string | null = null;
-
-  if (imageFile) {
-    if (imageFile.size > MAX_IMAGE_BYTES) {
-      throw new Error("画像は5MB以下にしてください");
-    }
-    const ext = imageFile.name.split(".").pop() ?? "jpg";
-    const path = `${authorId}/${crypto.randomUUID()}.${ext}`;
-    const { error: uploadError } = await supabase.storage
-      .from(POST_IMAGE_BUCKET)
-      .upload(path, imageFile);
-    if (uploadError) throw uploadError;
-    imageUrl = supabase.storage.from(POST_IMAGE_BUCKET).getPublicUrl(path)
-      .data.publicUrl;
-  }
+  const imageUrls = await uploadImages(authorId, imageFiles);
 
   const { error } = await supabase.from("sns_posts").insert({
     author_id: authorId,
     content,
-    image_url: imageUrl,
+    image_urls: imageUrls.length > 0 ? imageUrls : null,
     quoted_post_id: options?.quotedPostId ?? null,
     poll_options: options?.pollOptions ?? null,
     channel_id: options?.channelId ?? null,
   });
+  if (error) throw error;
+}
+
+export async function updatePost(postId: string, authorId: string, content: string) {
+  const { error } = await supabase
+    .from("sns_posts")
+    .update({ content })
+    .eq("id", postId)
+    .eq("author_id", authorId);
   if (error) throw error;
 }
 

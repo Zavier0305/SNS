@@ -3,10 +3,13 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
+import { useUnreadNotificationCount } from "@/lib/notifications-store";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export function Header() {
   const { profile, logout } = useAuth();
   const router = useRouter();
+  const { count } = useUnreadNotificationCount(profile?.id ?? null);
 
   async function handleLogout() {
     await logout();
@@ -20,8 +23,17 @@ export function Header() {
       </Link>
       {profile && (
         <div className="flex items-center gap-3 text-sm">
+          <ThemeToggle />
           <Link href="/servers" className="hover:underline text-black/60 dark:text-white/60">
             サーバー
+          </Link>
+          <Link href="/notifications" className="relative hover:underline text-black/60 dark:text-white/60">
+            🔔
+            {count > 0 && (
+              <span className="absolute -top-1.5 -right-2 bg-red-500 text-white text-[9px] rounded-full min-w-[14px] h-[14px] flex items-center justify-center px-0.5">
+                {count > 9 ? "9+" : count}
+              </span>
+            )}
           </Link>
           <Link href="/profile" className="hover:underline">
             {profile.displayName}

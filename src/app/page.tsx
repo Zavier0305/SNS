@@ -17,7 +17,7 @@ export default function Home() {
   const [feed, setFeed] = useState<FeedKind>("recommended");
   const [quotedPost, setQuotedPost] = useState<Post | null>(null);
   const userId = profile?.id ?? null;
-  const { posts, loading, refresh } = usePosts(feed, userId);
+  const { posts, loading, refresh, hasNew } = usePosts(feed, userId);
   const { followingIds, refresh: refreshFollowing } = useFollowingIds(userId);
   const { tags } = useTrendingTags();
 
@@ -83,6 +83,14 @@ export default function Home() {
             </button>
           ))}
         </div>
+        {hasNew && (
+          <button
+            onClick={refresh}
+            className="w-full py-2 text-xs text-blue-500 border-b border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/10"
+          >
+            新着の投稿があります・クリックして更新
+          </button>
+        )}
         {loading ? (
           <p className="p-4 text-sm text-black/50 dark:text-white/50">
             読み込み中...

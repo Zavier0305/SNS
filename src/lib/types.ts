@@ -13,7 +13,7 @@ export type Post = {
   authorHandle: string;
   authorDisplayName: string;
   content: string;
-  imageUrl: string | null;
+  imageUrls: string[];
   createdAt: string;
   expireAt: string;
   isPreserved: boolean;

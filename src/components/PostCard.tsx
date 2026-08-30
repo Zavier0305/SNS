@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { Fragment, useState } from "react";
 import type { Post } from "@/lib/types";
-import { deletePost, toggleFollow, toggleLike } from "@/lib/posts-store";
+import { deletePost, toggleFollow, toggleLike, updatePost } from "@/lib/posts-store";
 import { togglePin } from "@/lib/servers-store";
 import { useToast } from "@/lib/toast-context";
 import { CommentSection } from "@/components/CommentSection";
 import { PollWidget } from "@/components/PollWidget";
 import { PostMenu } from "@/components/PostMenu";
+import { ReactionBar } from "@/components/ReactionBar";
 
 function formatTime(iso: string) {
   const date = new Date(iso);
@@ -70,9 +71,28 @@ export function PostCard({
   const [showComments, setShowComments] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [hidden, setHidden] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editContent, setEditContent] = useState(post.content);
+  const [content, setContentState] = useState(post.content);
+  const [saving, setSaving] = useState(false);
   const { showToast } = useToast();
   const isOwnPost = currentUserId === post.authorId;
   const days = remainingDays(post.expireAt);
+
+  async function handleSaveEdit() {
+    if (!currentUserId || !editContent.trim() || saving) return;
+    setSaving(true);
+    try {
+      await updatePost(post.id, currentUserId, editContent.trim());
+      setContentState(editContent.trim());
+      setEditing(false);
+      showToast("編集しました");
+    } catch {
+      showToast("編集に失敗しました", "error");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   async function handlePin() {
     try {
@@ -163,13 +183,24 @@ export function PostCard({
             </button>
           )}
           {isOwnPost ? (
-            <button
-              onClick={handleDelete}
-              disabled={deleting}
-              className="text-xs text-black/40 dark:text-white/40 hover:text-red-500"
-            >
-              削除
-            </button>
+            <>
+              <button
+                onClick={() => {
+                  setEditContent(content);
+                  setEditing((v) => !v);
+                }}
+                className="text-xs text-black/40 dark:text-white/40 hover:underline"
+              >
+                編集
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="text-xs text-black/40 dark:text-white/40 hover:text-red-500"
+              >
+                削除
+              </button>
+            </>
           ) : (
             currentUserId && (
               <PostMenu
@@ -204,16 +235,52 @@ export function PostCard({
         )}
       </div>
 
-      <p className="mt-1 text-sm whitespace-pre-wrap break-words">
-        {renderContent(post.content)}
-      </p>
-      {post.imageUrl && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={post.imageUrl}
-          alt=""
-          className="mt-2 rounded-lg max-h-80 w-auto object-cover"
-        />
+      {editing ? (
+        <div className="mt-1 flex flex-col gap-1.5">
+          <textarea
+            value={editContent}
+            onChange={(e) => setEditContent(e.target.value)}
+            rows={3}
+            maxLength={280}
+            className="resize-none rounded-md border border-black/10 dark:border-white/20 bg-transparent p-2 text-sm outline-none focus:border-black/30 dark:focus:border-white/40"
+          />
+          <div className="flex justify-end gap-2">
+            <button
+              onClick={() => setEditing(false)}
+              className="text-xs text-black/50 dark:text-white/50"
+            >
+              キャンセル
+            </button>
+            <button
+              onClick={handleSaveEdit}
+              disabled={saving || !editContent.trim()}
+              className="text-xs rounded-full bg-foreground text-background px-3 py-1 disabled:opacity-40"
+            >
+              保存
+            </button>
+          </div>
+        </div>
+      ) : (
+        <p className="mt-1 text-sm whitespace-pre-wrap break-words">
+          {renderContent(content)}
+        </p>
+      )}
+      {post.imageUrls.length > 0 && (
+        <div
+          className={`mt-2 grid gap-1 ${
+            post.imageUrls.length === 1 ? "grid-cols-1" : "grid-cols-2"
+          }`}
+        >
+          {post.imageUrls.map((url, i) => (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              key={i}
+              src={url}
+              alt=""
+              className="rounded-lg max-h-60 w-full object-cover"
+            />
+          ))}
+        </div>
       )}
 
       {post.pollOptions && (
@@ -265,6 +332,7 @@ export function PostCard({
           </button>
         )}
       </div>
+      <ReactionBar postId={post.id} currentUserId={currentUserId} />
       {showComments && (
         <CommentSection
           postId={post.id}
