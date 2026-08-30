@@ -11,6 +11,16 @@ import { PostForm } from "@/components/PostForm";
 import { PostCard } from "@/components/PostCard";
 import type { FeedKind, Post } from "@/lib/types";
 
+function dateLabel(iso: string): string {
+  const date = new Date(iso);
+  const now = new Date();
+  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const diffDays = Math.round((startOfDay(now) - startOfDay(date)) / (1000 * 60 * 60 * 24));
+  if (diffDays === 0) return "今日";
+  if (diffDays === 1) return "昨日";
+  return date.toLocaleDateString("ja-JP", { month: "long", day: "numeric" });
+}
+
 export default function Home() {
   const { profile, checked } = useAuth();
   const router = useRouter();
@@ -119,17 +129,27 @@ export default function Home() {
               : "まだ投稿がありません。最初の投稿をしてみましょう。"}
           </p>
         ) : (
-          posts.map((post) => (
-            <PostCard
-              key={post.id}
-              post={post}
-              currentUserId={userId}
-              isFollowing={followingIds.has(post.authorId)}
-              onFollowChange={handleFollowChange}
-              onDeleted={refresh}
-              onQuote={setQuotedPost}
-            />
-          ))
+          posts.map((post, i) => {
+            const label = dateLabel(post.createdAt);
+            const showSeparator = i === 0 || dateLabel(posts[i - 1].createdAt) !== label;
+            return (
+              <div key={post.id}>
+                {showSeparator && (
+                  <div className="px-4 py-1.5 text-[11px] font-medium text-black/40 dark:text-white/40 bg-black/[0.02] dark:bg-white/[0.03] border-b border-black/10 dark:border-white/10">
+                    {label}
+                  </div>
+                )}
+                <PostCard
+                  post={post}
+                  currentUserId={userId}
+                  isFollowing={followingIds.has(post.authorId)}
+                  onFollowChange={handleFollowChange}
+                  onDeleted={refresh}
+                  onQuote={setQuotedPost}
+                />
+              </div>
+            );
+          })
         )}
         <div ref={sentinelRef} />
         {loadingMore && (

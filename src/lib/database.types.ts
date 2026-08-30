@@ -213,9 +213,36 @@ export type Database = {
         Relationships: []
       }
       sns_profiles: {
-        Row: { created_at: string; display_name: string; handle: string; id: string }
-        Insert: { created_at?: string; display_name?: string; handle: string; id: string }
-        Update: { created_at?: string; display_name?: string; handle?: string; id?: string }
+        Row: {
+          created_at: string
+          display_name: string
+          handle: string
+          id: string
+          notify_comments: boolean
+          notify_follows: boolean
+          notify_likes: boolean
+          theme_color: string | null
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string
+          handle: string
+          id: string
+          notify_comments?: boolean
+          notify_follows?: boolean
+          notify_likes?: boolean
+          theme_color?: string | null
+        }
+        Update: {
+          created_at?: string
+          display_name?: string
+          handle?: string
+          id?: string
+          notify_comments?: boolean
+          notify_follows?: boolean
+          notify_likes?: boolean
+          theme_color?: string | null
+        }
         Relationships: []
       }
       sns_reports: {

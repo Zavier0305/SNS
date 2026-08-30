@@ -24,6 +24,7 @@ export default function ServersPage() {
   const [topic, setTopic] = useState("");
   const [isPublic, setIsPublic] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [query, setQuery] = useState("");
 
   function refresh() {
     setLoading(true);
@@ -76,6 +77,12 @@ export default function ServersPage() {
 
   if (!checked || !profile) return null;
 
+  const filteredServers = servers.filter((s) => {
+    const q = query.trim().toLowerCase();
+    if (!q) return true;
+    return s.name.toLowerCase().includes(q) || (s.topic ?? "").toLowerCase().includes(q);
+  });
+
   return (
     <>
       <Header />
@@ -118,14 +125,23 @@ export default function ServersPage() {
           </div>
         </form>
 
+        <div className="p-3 border-b border-black/10 dark:border-white/10">
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="サーバーを検索"
+            className="w-full rounded-md border border-black/10 dark:border-white/20 bg-transparent px-2 py-1.5 text-sm outline-none focus:border-black/30 dark:focus:border-white/40"
+          />
+        </div>
+
         {loading ? (
           <p className="p-4 text-sm text-black/50 dark:text-white/50">読み込み中...</p>
-        ) : servers.length === 0 ? (
+        ) : filteredServers.length === 0 ? (
           <p className="p-4 text-sm text-black/50 dark:text-white/50">
-            サーバーはまだありません。
+            {servers.length === 0 ? "サーバーはまだありません。" : "該当するサーバーがありません。"}
           </p>
         ) : (
-          servers.map((server) => (
+          filteredServers.map((server) => (
             <div
               key={server.id}
               className="p-4 border-b border-black/10 dark:border-white/10 flex items-center justify-between gap-2"

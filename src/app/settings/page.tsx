@@ -6,15 +6,17 @@ import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/lib/toast-context";
 import { toggleBlock, toggleMute } from "@/lib/posts-store";
 import { fetchBlockedProfiles, fetchMutedProfiles } from "@/lib/moderation-lists-store";
+import { fetchNotificationPrefs } from "@/lib/profiles-store";
 import { Header } from "@/components/Header";
-import type { Profile } from "@/lib/types";
+import type { NotificationPrefs, Profile } from "@/lib/types";
 
 export default function SettingsPage() {
-  const { profile, checked } = useAuth();
+  const { profile, checked, updateNotificationPrefs } = useAuth();
   const router = useRouter();
   const { showToast } = useToast();
   const [muted, setMuted] = useState<Profile[]>([]);
   const [blocked, setBlocked] = useState<Profile[]>([]);
+  const [prefs, setPrefs] = useState<NotificationPrefs | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -24,12 +26,29 @@ export default function SettingsPage() {
   function refresh() {
     if (!profile) return;
     setLoading(true);
-    Promise.all([fetchMutedProfiles(profile.id), fetchBlockedProfiles(profile.id)])
-      .then(([m, b]) => {
+    Promise.all([
+      fetchMutedProfiles(profile.id),
+      fetchBlockedProfiles(profile.id),
+      fetchNotificationPrefs(profile.id),
+    ])
+      .then(([m, b, p]) => {
         setMuted(m);
         setBlocked(b);
+        setPrefs(p);
       })
       .finally(() => setLoading(false));
+  }
+
+  async function handlePrefChange(key: keyof NotificationPrefs, value: boolean) {
+    if (!prefs) return;
+    const next = { ...prefs, [key]: value };
+    setPrefs(next);
+    try {
+      await updateNotificationPrefs(next);
+    } catch {
+      showToast("設定の保存に失敗しました", "error");
+      setPrefs(prefs);
+    }
   }
 
   useEffect(() => {
@@ -73,6 +92,37 @@ export default function SettingsPage() {
           <p className="p-4 text-sm text-black/50 dark:text-white/50">読み込み中...</p>
         ) : (
           <>
+            <section className="p-4 border-b border-black/10 dark:border-white/10">
+              <h2 className="text-sm font-semibold mb-2">通知設定</h2>
+              {prefs && (
+                <div className="flex flex-col gap-2 text-sm">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={prefs.notifyLikes}
+                      onChange={(e) => handlePrefChange("notifyLikes", e.target.checked)}
+                    />
+                    いいねされたら通知する
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={prefs.notifyComments}
+                      onChange={(e) => handlePrefChange("notifyComments", e.target.checked)}
+                    />
+                    コメントされたら通知する
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={prefs.notifyFollows}
+                      onChange={(e) => handlePrefChange("notifyFollows", e.target.checked)}
+                    />
+                    フォローされたら通知する
+                  </label>
+                </div>
+              )}
+            </section>
             <section className="p-4 border-b border-black/10 dark:border-white/10">
               <h2 className="text-sm font-semibold mb-2">ミュート中のユーザー</h2>
               {muted.length === 0 ? (

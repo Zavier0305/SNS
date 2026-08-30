@@ -1,11 +1,12 @@
 "use client";
 
-import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { addPost, MAX_IMAGE_BYTES, MAX_IMAGES_PER_POST } from "@/lib/posts-store";
 import { useToast } from "@/lib/toast-context";
 import type { Post } from "@/lib/types";
 
 const MAX_POLL_OPTIONS = 4;
+const MAX_CONTENT_LENGTH = 280;
 
 type ImageEntry = { file: File; previewUrl: string };
 
@@ -22,12 +23,29 @@ export function PostForm({
   onCancelQuote?: () => void;
   channelId?: string | null;
 }) {
+  const draftKey = `sns.draft.${channelId ?? "global"}`;
   const [content, setContent] = useState("");
   const [images, setImages] = useState<ImageEntry[]>([]);
   const [pollOptions, setPollOptions] = useState<string[] | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { showToast } = useToast();
+
+  useEffect(() => {
+    if (quotedPost) return;
+    const draft = localStorage.getItem(draftKey);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (draft) setContent(draft);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftKey]);
+
+  useEffect(() => {
+    if (content) {
+      localStorage.setItem(draftKey, content);
+    } else {
+      localStorage.removeItem(draftKey);
+    }
+  }, [content, draftKey]);
 
   function handleImageChange(e: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
@@ -91,6 +109,7 @@ export function PostForm({
         },
       );
       setContent("");
+      localStorage.removeItem(draftKey);
       clearImages();
       setPollOptions(null);
       showToast("投稿しました");
@@ -130,9 +149,18 @@ export function PostForm({
         onChange={(e) => setContent(e.target.value)}
         placeholder="いまどうしてる？"
         rows={3}
-        maxLength={280}
+        maxLength={MAX_CONTENT_LENGTH}
         className="resize-none rounded-md border border-black/10 dark:border-white/20 bg-transparent p-2 text-sm outline-none focus:border-black/30 dark:focus:border-white/40"
       />
+      <span
+        className={`self-end text-[10px] ${
+          MAX_CONTENT_LENGTH - content.length <= 20
+            ? "text-red-500"
+            : "text-black/40 dark:text-white/40"
+        }`}
+      >
+        {content.length}/{MAX_CONTENT_LENGTH}
+      </span>
       {images.length > 0 && (
         <div className="flex gap-2 flex-wrap">
           {images.map((img, i) => (

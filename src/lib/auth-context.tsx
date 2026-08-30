@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { supabase } from "@/lib/supabase/client";
-import type { Profile } from "@/lib/types";
+import type { NotificationPrefs, Profile } from "@/lib/types";
 
 type AuthContextValue = {
   profile: Profile | null;
@@ -16,6 +16,8 @@ type AuthContextValue = {
   login: (nickname?: string) => Promise<void>;
   logout: () => Promise<void>;
   updateNickname: (nickname: string) => Promise<void>;
+  updateThemeColor: (color: string | null) => Promise<void>;
+  updateNotificationPrefs: (prefs: NotificationPrefs) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -25,19 +27,21 @@ function toProfile(row: {
   handle: string;
   display_name: string;
   created_at: string;
+  theme_color: string | null;
 }): Profile {
   return {
     id: row.id,
     handle: row.handle,
     displayName: row.display_name,
     createdAt: row.created_at,
+    themeColor: row.theme_color,
   };
 }
 
 async function fetchProfile(userId: string): Promise<Profile | null> {
   const { data } = await supabase
     .from("sns_profiles")
-    .select("id, handle, display_name, created_at")
+    .select("id, handle, display_name, created_at, theme_color")
     .eq("id", userId)
     .single();
   return data ? toProfile(data) : null;
@@ -112,9 +116,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile({ ...profile, displayName: trimmed });
   }
 
+  async function updateThemeColor(color: string | null) {
+    if (!profile) throw new Error("ログインしていません");
+    const { error } = await supabase
+      .from("sns_profiles")
+      .update({ theme_color: color })
+      .eq("id", profile.id);
+    if (error) throw error;
+    setProfile({ ...profile, themeColor: color });
+  }
+
+  async function updateNotificationPrefs(prefs: NotificationPrefs) {
+    if (!profile) throw new Error("ログインしていません");
+    const { error } = await supabase
+      .from("sns_profiles")
+      .update({
+        notify_likes: prefs.notifyLikes,
+        notify_comments: prefs.notifyComments,
+        notify_follows: prefs.notifyFollows,
+      })
+      .eq("id", profile.id);
+    if (error) throw error;
+  }
+
   return (
     <AuthContext.Provider
-      value={{ profile, checked, login, logout, updateNickname }}
+      value={{
+        profile,
+        checked,
+        login,
+        logout,
+        updateNickname,
+        updateThemeColor,
+        updateNotificationPrefs,
+      }}
     >
       {children}
     </AuthContext.Provider>

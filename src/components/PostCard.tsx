@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { Fragment, useEffect, useState } from "react";
 import type { Post } from "@/lib/types";
 import { deletePost, toggleFollow, toggleLike, updatePost } from "@/lib/posts-store";
@@ -29,6 +30,32 @@ function remainingDays(expireAt: string): number {
 }
 
 const HASHTAG_PATTERN = /#([\w぀-ヿ一-鿿]+)/g;
+const URL_PATTERN = /https?:\/\/[^\s]+/g;
+
+function extractLinks(content: string): string[] {
+  const matches = content.match(URL_PATTERN) ?? [];
+  return [...new Set(matches)].slice(0, 3);
+}
+
+function LinkPreviewCard({ url }: { url: string }) {
+  let hostname = url;
+  try {
+    hostname = new URL(url).hostname;
+  } catch {
+    // keep raw url as fallback label
+  }
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer nofollow"
+      className="mt-2 flex items-center gap-2 rounded-md border border-black/10 dark:border-white/10 p-2 text-xs hover:bg-black/5 dark:hover:bg-white/10"
+    >
+      <span aria-hidden="true">🔗</span>
+      <span className="truncate text-blue-500">{hostname}</span>
+    </a>
+  );
+}
 
 function renderContent(content: string) {
   const parts = content.split(HASHTAG_PATTERN);
@@ -313,6 +340,8 @@ export function PostCard({
           {renderContent(content)}
         </p>
       )}
+      {!editing &&
+        extractLinks(content).map((url) => <LinkPreviewCard key={url} url={url} />)}
       {post.imageUrls.length > 0 && (
         <div
           className={`mt-2 grid gap-1 ${
@@ -320,13 +349,16 @@ export function PostCard({
           }`}
         >
           {post.imageUrls.map((url, i) => (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              key={i}
-              src={url}
-              alt={`${post.authorDisplayName}の投稿画像 ${i + 1}`}
-              className="rounded-lg max-h-60 w-full object-cover"
-            />
+            <div key={i} className="relative h-60 w-full">
+              <Image
+                src={url}
+                alt={`${post.authorDisplayName}の投稿画像 ${i + 1}`}
+                fill
+                loading="lazy"
+                sizes="(max-width: 640px) 100vw, 576px"
+                className="rounded-lg object-cover"
+              />
+            </div>
           ))}
         </div>
       )}

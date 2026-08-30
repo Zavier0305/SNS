@@ -3,6 +3,13 @@ export type Profile = {
   handle: string;
   displayName: string;
   createdAt: string;
+  themeColor: string | null;
+};
+
+export type NotificationPrefs = {
+  notifyLikes: boolean;
+  notifyComments: boolean;
+  notifyFollows: boolean;
 };
 
 export type PollOption = { label: string; votes: number };

@@ -25,9 +25,10 @@ export function ProfileView({
   isFollowing: boolean;
   onFollowChange?: () => void;
 }) {
-  const { profile: myProfile, updateNickname } = useAuth();
+  const { profile: myProfile, updateNickname, updateThemeColor } = useAuth();
   const { showToast } = useToast();
   const isOwnProfile = currentUserId === profile.id;
+  const displayedThemeColor = isOwnProfile ? myProfile?.themeColor : profile.themeColor;
 
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,6 +37,7 @@ export function ProfileView({
   const [savingNickname, setSavingNickname] = useState(false);
   const [muted, setMuted] = useState(false);
   const [blocked, setBlocked] = useState(false);
+  const [savingColor, setSavingColor] = useState(false);
 
   const refresh = useMemo(
     () => () => {
@@ -130,8 +132,22 @@ export function ProfileView({
     }
   }
 
+  async function handleColorChange(color: string) {
+    setSavingColor(true);
+    try {
+      await updateThemeColor(color);
+    } catch {
+      showToast("テーマカラーの保存に失敗しました", "error");
+    } finally {
+      setSavingColor(false);
+    }
+  }
+
   return (
     <div>
+      {displayedThemeColor && (
+        <div className="h-2 w-full" style={{ backgroundColor: displayedThemeColor }} />
+      )}
       <div className="p-4 border-b border-black/10 dark:border-white/10">
         <div className="flex items-center justify-between">
           <div>
@@ -181,21 +197,34 @@ export function ProfileView({
         </div>
 
         {isOwnProfile && (
-          <form onSubmit={handleSaveNickname} className="mt-3 flex gap-2">
-            <input
-              value={nickname}
-              onChange={(e) => setNickname(e.target.value)}
-              maxLength={20}
-              className="flex-1 rounded-md border border-black/10 dark:border-white/20 bg-transparent px-2 py-1 text-sm outline-none focus:border-black/30 dark:focus:border-white/40"
-            />
-            <button
-              type="submit"
-              disabled={savingNickname || !nickname.trim()}
-              className="text-sm rounded-full bg-foreground text-background px-3 disabled:opacity-40"
-            >
-              保存
-            </button>
-          </form>
+          <>
+            <form onSubmit={handleSaveNickname} className="mt-3 flex gap-2">
+              <input
+                value={nickname}
+                onChange={(e) => setNickname(e.target.value)}
+                maxLength={20}
+                className="flex-1 rounded-md border border-black/10 dark:border-white/20 bg-transparent px-2 py-1 text-sm outline-none focus:border-black/30 dark:focus:border-white/40"
+              />
+              <button
+                type="submit"
+                disabled={savingNickname || !nickname.trim()}
+                className="text-sm rounded-full bg-foreground text-background px-3 disabled:opacity-40"
+              >
+                保存
+              </button>
+            </form>
+            <div className="mt-2 flex items-center gap-2 text-xs text-black/60 dark:text-white/60">
+              <label htmlFor="theme-color">テーマカラー</label>
+              <input
+                id="theme-color"
+                type="color"
+                value={displayedThemeColor ?? "#3b82f6"}
+                onChange={(e) => handleColorChange(e.target.value)}
+                disabled={savingColor}
+                className="h-6 w-10 rounded border border-black/10 dark:border-white/20 bg-transparent"
+              />
+            </div>
+          </>
         )}
       </div>
 
