@@ -384,12 +384,12 @@ export function ProfileView({
           </div>
         </div>
       </div>
-      {!isOwnProfile && blockedByThem && (
-        <div className="px-4 py-2 bg-red-500/10 text-red-500 text-xs">
-          このユーザーからブロックされています
-        </div>
-      )}
       <div className="p-4 pt-10 border-b border-black/10 dark:border-white/10">
+        {!isOwnProfile && blockedByThem && (
+          <div className="mb-2 rounded-md bg-red-500/10 px-2 py-1.5 text-xs text-red-500">
+            このユーザーからブロックされています
+          </div>
+        )}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-lg font-semibold">
