@@ -1,6 +1,3 @@
-plugins {
-    // Android Gradle Plugin のバージョンは app/build.gradle.kts 側で指定している
-    // (SDKのない環境で :core だけビルドするとき、AGPをダウンロードしなくて済むように)
-    id("org.jetbrains.kotlin.android") version "2.2.21" apply false
-    id("org.jetbrains.kotlin.jvm") version "2.2.21" apply false
-}
+// プラグインのバージョンは各モジュール(core / app)の build.gradle.kts で指定している。
+// ここ(ルート)で Kotlin プラグインを読み込むと、app で読み込む Android プラグインと
+// 別々の場所に読み込まれて互いが見えなくなり、同期エラーになるため。

@@ -1,5 +1,5 @@
 plugins {
-    id("org.jetbrains.kotlin.jvm")
+    id("org.jetbrains.kotlin.jvm") version "2.2.21"
 }
 
 // Androidアプリからも使うので、バイトコードは Java 17 相当に揃える(JDK 17以上ならどれでもビルド可)
