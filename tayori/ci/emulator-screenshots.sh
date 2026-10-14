@@ -55,4 +55,13 @@ shot 05-scrolled
 adb shell run-as $PKG cat files/tayori_log.csv > "$OUT/tayori_log.csv" || true
 adb logcat -d > "$OUT/logcat.txt"
 grep -E "TayoriBle|AndroidRuntime|FATAL" "$OUT/logcat.txt" | tail -50 || true
+# 画像を縮小・文字(base64)に変換してログにも出す(Artifactsをダウンロードできない環境から回収するため)
+for f in "$OUT"/*.png; do
+  name=$(basename "$f" .png)
+  convert "$f" -resize 360x -quality 60 "$OUT/$name.jpg" 2>/dev/null || continue
+  echo "===IMG-BEGIN $name==="
+  base64 -w 1000 "$OUT/$name.jpg"
+  echo "===IMG-END $name==="
+done
+echo "===CSV-BEGIN==="; cat "$OUT/tayori_log.csv" 2>/dev/null; echo "===CSV-END==="
 exit 0
