@@ -16,6 +16,17 @@ android {
         versionName = "0.1.0-phase1"
     }
 
+    // 実験用の固定の署名鍵(公開してよい練習用の鍵)。
+    // 毎回同じ鍵で署名するので、新しい版を「上書きインストール」できる(アンインストール不要)。
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("tayori-debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false

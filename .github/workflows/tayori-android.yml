@@ -16,6 +16,8 @@ on:
 jobs:
   build-apk:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # できたAPKをブランチに保存するため
     defaults:
       run:
         working-directory: tayori
@@ -42,3 +44,18 @@ jobs:
           name: tayori-debug-apk
           path: tayori/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
+
+      # ログイン不要で直接ダウンロードできるよう、APKを tayori/dist/tayori.apk としてブランチに保存する
+      - name: Commit APK to the branch
+        if: github.event_name == 'push'
+        working-directory: .
+        run: |
+          mkdir -p tayori/dist
+          cp tayori/app/build/outputs/apk/debug/app-debug.apk tayori/dist/tayori.apk
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tayori/dist/tayori.apk
+          git diff --cached --quiet && exit 0
+          git commit -m "Update tayori.apk [skip ci]"
+          git pull --rebase origin "${GITHUB_REF_NAME}"
+          git push origin "HEAD:${GITHUB_REF_NAME}"

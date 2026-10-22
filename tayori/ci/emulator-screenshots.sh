@@ -25,6 +25,10 @@ adb shell cmd bluetooth_manager enable || adb shell svc bluetooth enable || true
 sleep 3
 adb logcat -c
 
+# 操作の様子を動画でも撮る(最大3分)
+adb shell screenrecord --bit-rate 2000000 /sdcard/demo.mp4 &
+REC=$!
+sleep 1
 adb shell am start -n $PKG/.app.MainActivity
 sleep 5
 shot 01-launch
@@ -49,8 +53,15 @@ tap "edit:2"; adb shell input text "help-from-emulator"; hide_keyboard
 tap "text:送信"
 shot 04-sent
 
-adb shell input swipe 500 1800 500 400 400
+adb shell input swipe 160 560 160 140 600
 shot 05-scrolled
+sleep 2
+adb shell input swipe 160 560 160 140 600
+sleep 3
+adb shell pkill -INT screenrecord || true
+wait $REC 2>/dev/null || true
+sleep 3
+adb pull /sdcard/demo.mp4 "$OUT/demo.mp4" || true
 
 adb shell run-as $PKG cat files/tayori_log.csv > "$OUT/tayori_log.csv" || true
 adb logcat -d > "$OUT/logcat.txt"
