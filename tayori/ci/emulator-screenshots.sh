@@ -1,21 +1,27 @@
 #!/usr/bin/env bash
-# エミュレータにAPKを入れ、画面を操作してスクリーンショットを撮る(GitHub Actions 用)。
-# Bluetoothの実通信はエミュレータでは確認できないので、画面と操作の流れの確認が目的。
+# エミュレータにAPKを入れ、実際の使い方の流れで操作して、動画とスクリーンショットを撮る(GitHub Actions 用)。
+# Bluetoothの実通信はエミュレータ1台では確認できないので、画面と操作の流れの確認が目的。
 set -u
 PKG=com.zavier.tayori.exp
 OUT=ci-out
 mkdir -p "$OUT"
+C_CODE=$(cat "$OUT/c_code.txt")
 
-shot() { sleep 2; adb exec-out screencap -p > "$OUT/$1.png"; echo "shot: $1"; }
+shot() { sleep 1; adb exec-out screencap -p > "$OUT/$1.png"; echo "shot: $1"; }
+dump() { adb shell uiautomator dump /sdcard/ui.xml > /dev/null; adb pull /sdcard/ui.xml "$OUT/ui.xml" > /dev/null; }
+# 画面内に見つかるまで上下にスクロールしてからタップする
 tap() {
-  adb shell uiautomator dump /sdcard/ui.xml > /dev/null
-  adb pull /sdcard/ui.xml "$OUT/ui.xml" > /dev/null
-  local xy
-  xy=$(python3 ci/ui_find.py "$OUT/ui.xml" "$1") || { echo "tap failed: $1"; return 1; }
-  adb shell input tap $xy
-  sleep 1
+  local target=$1 dir=${2:-down} xy
+  for i in $(seq 1 8); do
+    dump
+    if xy=$(python3 ci/ui_find.py "$OUT/ui.xml" "$target" 2>/dev/null); then adb shell input tap $xy; sleep 1; return 0; fi
+    if [ "$dir" = down ]; then adb shell input swipe 160 500 160 250 400; else adb shell input swipe 160 250 160 500 400; fi
+    sleep 1
+  done
+  echo "tap failed: $target"; return 1
 }
-hide_keyboard() { adb shell input keyevent 111; sleep 1; }
+type_text() { adb shell input text "$1"; sleep 1; adb shell input keyevent 111; sleep 1; }
+scroll_to() { tap "$1" "${2:-down}" > /dev/null 2>&1 || true; }
 
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 for p in BLUETOOTH_SCAN BLUETOOTH_CONNECT BLUETOOTH_ADVERTISE POST_NOTIFICATIONS; do
@@ -25,39 +31,55 @@ adb shell cmd bluetooth_manager enable || adb shell svc bluetooth enable || true
 sleep 3
 adb logcat -c
 
-# 操作の様子を動画でも撮る(最大3分)
-adb shell screenrecord --bit-rate 2000000 /sdcard/demo.mp4 &
+adb shell screenrecord --bit-rate 3000000 --time-limit 180 /sdcard/demo.mp4 &
 REC=$!
 sleep 1
 adb shell am start -n $PKG/com.zavier.tayori.app.MainActivity
-sleep 5
+sleep 4
 shot 01-launch
 
-# 端末IDを A にする
-tap "edit:0"
+# 1. 端末IDを A にする
+tap "edit:0" up
 adb shell input keyevent KEYCODE_MOVE_END
 for i in $(seq 1 10); do adb shell input keyevent KEYCODE_DEL; done
-adb shell input text A
-hide_keyboard
-tap "text:IDを保存"
+type_text A
+tap "text:IDを保存" up
+sleep 2
 shot 02-id-saved
 
-tap "text:中継を開始"
-sleep 6
-shot 03-started
-
-# C 宛てに送信(adb では日本語を入力できないので英数字で)
-tap "edit:1"; adb shell input text C; hide_keyboard
-tap "text:要救助"
-tap "edit:2"; adb shell input text "help-from-emulator"; hide_keyboard
-tap "text:送信"
-shot 04-sent
-
-adb shell input swipe 160 560 160 140 600
-shot 05-scrolled
-sleep 2
-adb shell input swipe 160 560 160 140 600
+# 2. 自分の連絡先コード(QR)を見せる
+adb shell input swipe 160 500 160 200 600
 sleep 3
+shot 03-my-code
+
+# 3. 相手(C)の連絡先コードを貼り付けて登録する
+tap "text:相手の連絡先コードを貼り付け(TAYORI1:…)"
+type_text "$C_CODE"
+tap "text:連絡先に追加"
+sleep 2
+shot 04-contact-added
+
+# 4. 中継を開始
+tap "text:中継を開始" up
+sleep 4
+shot 05-started
+
+# 5. C 宛てに「要救助」を送る
+tap "text:宛先の端末ID"
+type_text C
+tap "text:要救助"
+tap "text:ひとこと(50文字以内・省略可)"
+type_text "3F-west"
+tap "text:送信"
+sleep 2
+shot 06-sent
+
+# 6. 送ったメッセージを確認
+scroll_to "text:⑥ 実験ログ"
+sleep 3
+shot 07-sent-list
+sleep 2
+
 adb shell pkill -INT screenrecord || true
 wait $REC 2>/dev/null || true
 sleep 3
@@ -65,6 +87,6 @@ adb pull /sdcard/demo.mp4 "$OUT/demo.mp4" || true
 
 adb shell run-as $PKG cat files/tayori_log.csv > "$OUT/tayori_log.csv" || true
 adb logcat -d > "$OUT/logcat.txt"
-grep -E "TayoriBle|AndroidRuntime|FATAL" "$OUT/logcat.txt" | tail -50 || true
+grep -E "TayoriBle|AndroidRuntime: FATAL|FATAL EXCEPTION" "$OUT/logcat.txt" | tail -30 || true
 echo "===CSV-BEGIN==="; cat "$OUT/tayori_log.csv" 2>/dev/null; echo "===CSV-END==="
 exit 0

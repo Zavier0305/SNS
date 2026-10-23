@@ -8,7 +8,8 @@ root = ET.parse(sys.argv[1]).getroot()
 kind, _, value = sys.argv[2].partition(":")
 nodes = list(root.iter("node"))
 if kind == "text":
-    hits = [n for n in nodes if n.get("text") == value]
+    # 空の入力欄は、端末によって text か hint のどちらかに案内文が入るので両方見る
+    hits = [n for n in nodes if n.get("text") == value or n.get("hint") == value]
 else:
     hits = [n for n in nodes if n.get("class") == "android.widget.EditText"][int(value):int(value) + 1]
 if not hits:

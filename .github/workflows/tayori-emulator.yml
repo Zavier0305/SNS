@@ -29,7 +29,10 @@ jobs:
 
       - name: Build debug APK
         working-directory: tayori
-        run: ./gradlew :app:assembleDebug --console=plain
+        run: |
+          ./gradlew :app:assembleDebug --console=plain
+          mkdir -p ci-out
+          ./gradlew :core:demoContactCode -Pout=$PWD/ci-out/c_code.txt --console=plain -q
 
       # エミュレータを高速に動かすための仮想化機能(KVM)を有効にする
       - name: Enable KVM
