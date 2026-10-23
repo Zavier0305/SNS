@@ -5,8 +5,12 @@ import android.app.Activity
 import android.app.AlertDialog
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.Color
 import android.graphics.Typeface
 import android.location.LocationManager
 import android.net.Uri
@@ -22,6 +26,7 @@ import android.text.TextWatcher
 import android.view.View
 import android.widget.Button
 import android.widget.EditText
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.RadioButton
 import android.widget.RadioGroup
@@ -31,6 +36,9 @@ import android.widget.Toast
 import com.zavier.tayori.core.DeviceId
 import com.zavier.tayori.core.MessageRules
 import com.zavier.tayori.core.SafetyStatus
+import com.zavier.tayori.core.UnknownRecipientException
+import com.google.zxing.BarcodeFormat
+import com.google.zxing.qrcode.QRCodeWriter
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -61,6 +69,11 @@ class MainActivity : Activity() {
     private lateinit var inboxText: TextView
     private lateinit var sentText: TextView
     private lateinit var logText: TextView
+    private lateinit var myCodeText: TextView
+    private lateinit var myCodeQr: ImageView
+    private lateinit var contactInput: EditText
+    private lateinit var contactsText: TextView
+    private var qrFor: String? = null
 
     private val onRuntimeChanged: () -> Unit = { ui.post { render() } }
     private val periodicRefresh = object : Runnable {
@@ -129,7 +142,29 @@ class MainActivity : Activity() {
         statusText = TextView(this).apply { setTextIsSelectable(true) }
         root.addView(statusText)
 
-        section("② メッセージを送る")
+        section("② 連絡先(送る前に、相手とコードを交換)")
+        root.addView(
+            TextView(this).apply {
+                text = "メッセージは宛先の人だけが読めるよう暗号化されます。そのため、送る相手とあらかじめ" +
+                    "「連絡先コード」を交換しておきます(QRコードをカメラで読み取るか、LINEなどで送り合う)。"
+                textSize = 13f
+            },
+        )
+        myCodeQr = ImageView(this).apply { adjustViewBounds = true }
+        root.addView(myCodeQr, LinearLayout.LayoutParams(dp(200), dp(200)))
+        myCodeText = TextView(this).apply { setTextIsSelectable(true); textSize = 11f }
+        root.addView(myCodeText)
+        row(
+            Button(this).apply { text = "コードをコピー"; setOnClickListener { copyMyCode() } },
+            Button(this).apply { text = "コードを送る"; setOnClickListener { shareMyCode() } },
+        )
+        contactInput = EditText(this).apply { hint = "相手の連絡先コードを貼り付け(TAYORI1:…)" }
+        root.addView(contactInput)
+        root.addView(Button(this).apply { text = "連絡先に追加"; setOnClickListener { addContact() } })
+        contactsText = TextView(this)
+        root.addView(contactsText)
+
+        section("③ メッセージを送る")
         destInput = EditText(this).apply {
             hint = "宛先の端末ID"
             filters = arrayOf(InputFilter.LengthFilter(DeviceId.MAX_LENGTH))
@@ -157,15 +192,15 @@ class MainActivity : Activity() {
         root.addView(counterText)
         root.addView(Button(this).apply { text = "送信"; setOnClickListener { sendMessage() } })
 
-        section("③ 自分宛てに届いたメッセージ")
+        section("④ 自分宛てに届いたメッセージ")
         inboxText = TextView(this).apply { setTextIsSelectable(true) }
         root.addView(inboxText)
 
-        section("④ 自分が送ったメッセージ")
+        section("⑤ 自分が送ったメッセージ")
         sentText = TextView(this).apply { setTextIsSelectable(true) }
         root.addView(sentText)
 
-        section("⑤ 実験ログ")
+        section("⑥ 実験ログ")
         logText = TextView(this)
         root.addView(logText)
         row(
@@ -199,18 +234,30 @@ class MainActivity : Activity() {
             ble?.problems?.forEach { appendLine("⚠ $it") }
         }.trimEnd()
 
-        inboxText.text = snap?.inbox?.reversed()?.joinToString("\n\n") { m ->
+        inboxText.text = snap?.inbox?.reversed()?.joinToString("\n\n") { r ->
+            val m = r.letter
+            val who = if (r.verified) "${m.originId}(本人確認済み)" else "${m.originId}(⚠ 未登録の送り主・本人か確認できません)"
             "【${m.status.label}】${m.text.ifEmpty { "(本文なし)" }}\n" +
-                "  from ${m.originId} / ${m.hop}ホップ / 送信 ${timeFormat.format(Date(m.createdAt))}"
+                "  from $who / ${r.hop}ホップ / 送信 ${timeFormat.format(Date(m.createdAt))}"
         }?.ifEmpty { null } ?: "まだありません"
 
         sentText.text = snap?.sentByMe?.reversed()?.joinToString("\n\n") { o ->
-            "→ ${o.message.destId}【${o.message.status.label}】${o.message.text}\n" +
-                "  ${timeFormat.format(Date(o.message.createdAt))} / 渡した相手: " +
-                (o.sentTo.sorted().joinToString(", ").ifEmpty { "まだ誰にも" })
+            "→ ${o.letter.destId}【${o.letter.status.label}】${o.letter.text}\n" +
+                "  ${timeFormat.format(Date(o.letter.createdAt))} / 渡した端末の数: " +
+                (if (o.sentTo.isEmpty()) "まだ誰にも" else "${o.sentTo.size}台")
         }?.ifEmpty { null } ?: "まだありません"
 
-        logText.text = "記録済み: ${TayoriRuntime.log.lineCount} 行"
+        logText.text = "記録済み: ${TayoriRuntime.log.lineCount} 行" +
+            if (TayoriRuntime.log.isFull) "\n⚠ 記録が上限(20MB)に達したため止まっています。書き出してから消去してください" else ""
+
+        val code = TayoriRuntime.identity().contactCode()
+        myCodeText.text = "あなたの連絡先コード(端末ID ${TayoriRuntime.deviceId}):\n$code"
+        if (qrFor != code) {
+            qrFor = code
+            myCodeQr.setImageBitmap(qrBitmap(code, dp(200)))
+        }
+        val list = TayoriRuntime.contacts()
+        contactsText.text = if (list.isEmpty()) "登録済みの連絡先: まだありません" else "登録済みの連絡先: " + list.joinToString(", ") { it.id }
     }
 
     private fun mark(ok: Boolean) = if (ok) "○" else "×"
@@ -324,13 +371,48 @@ class MainActivity : Activity() {
             !DeviceId.isValid(dest) -> toast("宛先の端末IDを入力してください")
             dest == engine.selfId -> toast("自分宛てには送れません")
             !MessageRules.isValidText(text) -> toast("本文は${MessageRules.MAX_TEXT_LENGTH}文字以内にしてください")
-            else -> {
+            else -> try {
                 engine.sendMessage(dest, status, text)
                 textInput.setText("")
                 toast("送信待ちに入れました。近くの端末に順次渡します")
                 render()
+            } catch (e: UnknownRecipientException) {
+                toast("「$dest」の連絡先コードが未登録です。先に②で相手とコードを交換してください")
             }
         }
+    }
+
+    private fun copyMyCode() {
+        val cm = getSystemService(ClipboardManager::class.java) ?: return
+        cm.setPrimaryClip(ClipData.newPlainText("たより連絡先コード", TayoriRuntime.identity().contactCode()))
+        toast("連絡先コードをコピーしました")
+    }
+
+    private fun shareMyCode() {
+        val send = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, TayoriRuntime.identity().contactCode())
+        }
+        startActivity(Intent.createChooser(send, "連絡先コードを送る"))
+    }
+
+    private fun addContact() {
+        val code = contactInput.text.toString().trim()
+        val c = TayoriRuntime.addContact(code)
+        if (c == null) {
+            toast("連絡先コードを読み取れません。TAYORI1: から始まる全体を貼り付けてください")
+        } else {
+            contactInput.setText("")
+            toast("「${c.id}」を連絡先に追加しました")
+            render()
+        }
+    }
+
+    /** 文字列をQRコードの画像にする(相手のカメラで読み取ってもらう)。 */
+    private fun qrBitmap(text: String, size: Int): Bitmap {
+        val m = QRCodeWriter().encode(text, BarcodeFormat.QR_CODE, size, size)
+        val px = IntArray(m.width * m.height) { i -> if (m.get(i % m.width, i / m.width)) Color.BLACK else Color.WHITE }
+        return Bitmap.createBitmap(px, m.width, m.height, Bitmap.Config.ARGB_8888)
     }
 
     private fun exportCsv() {

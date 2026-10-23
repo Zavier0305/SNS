@@ -9,6 +9,12 @@ package com.zavier.tayori.core
  * こうして分けておくと、実機1台しかなくても中継ロジックをPC上で何台分でも検証できる。
  */
 interface Transport {
+    /**
+     * いま周りに知らせている自分の「一時ID」。追跡されにくくするため定期的に変わる。
+     * 封筒の fromId に入れ、相手が送り返さないようにするために使う(本当の端末IDとは別)。
+     */
+    val localHandle: String
+
     /** 周囲の探索・受信待ちを開始する。以後のイベントは [listener] に通知する。 */
     fun start(listener: TransportListener)
 

@@ -26,6 +26,7 @@ import android.os.ParcelUuid
 import android.os.SystemClock
 import android.util.Log
 import com.zavier.tayori.core.DeviceId
+import com.zavier.tayori.core.PacketCodec
 import com.zavier.tayori.core.Transport
 import com.zavier.tayori.core.TransportListener
 import java.io.ByteArrayOutputStream
@@ -50,7 +51,11 @@ import java.util.UUID
 @SuppressLint("MissingPermission")
 class BleTransport(
     private val context: Context,
-    private val selfId: String,
+    /**
+     * 周りに知らせる一時IDを変える間隔。同じIDを出し続けると、IDを聞き続けた人に居場所を追跡されうるため。
+     * 実験で「同じ相手との接触回数」を数えるときは、この間隔ごとに別の相手として数えられる点に注意。
+     */
+    private val handleRotationMs: Long = 15 * 60 * 1000L,
 ) : Transport {
 
     companion object {
@@ -82,7 +87,27 @@ class BleTransport(
         private const val SCAN_START_LIMIT = 4
 
         private const val RETRY_DELAY_MS = 10_000L
+
+        /** 1件のデータの上限。これを超える書き込みは途中で打ち切る(巨大なデータでメモリを使い果たす攻撃への備え)。 */
+        private const val MAX_PAYLOAD = PacketCodec.MAX_PACKET_SIZE
+
+        /** 分割書き込みを同時に組み立てる相手の数の上限。 */
+        private const val MAX_PENDING_WRITERS = 8
+
+        /** 1台の相手から受け付ける量の上限: [RATE_WINDOW_MS] あたり [RATE_MAX_BYTES] バイトまで(約18件分)。 */
+        private const val RATE_WINDOW_MS = 10_000L
+        private const val RATE_MAX_BYTES = 8_192
+
+        private const val HANDLE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+        private val random = java.security.SecureRandom()
+
+        /** 8文字のランダムな一時ID(端末IDの形式に合わせる)。 */
+        fun newHandle(): String = (1..8).map { HANDLE_CHARS[random.nextInt(HANDLE_CHARS.length)] }.joinToString("")
     }
+
+    @Volatile
+    override var localHandle: String = newHandle()
+        private set
 
     /** UIに表示するための状態(「広告: 非対応」など)。 */
     data class Status(
@@ -126,7 +151,19 @@ class BleTransport(
             }
             openGattServer() // 成功したら onServiceAdded から広告を開始する
             startScan()
+            handler.postDelayed(rotateHandle, handleRotationMs)
         }
+    }
+
+    /** 一時IDを新しくして、広告を出し直す。 */
+    private val rotateHandle: Runnable = Runnable {
+        if (!running) return@Runnable
+        localHandle = newHandle()
+        if (status.advertising) {
+            stopAdvertising()
+            startAdvertising()
+        }
+        handler.postDelayed(rotateHandle, handleRotationMs)
     }
 
     override fun stop() {
@@ -190,7 +227,7 @@ class BleTransport(
         // 端末IDは「スキャン応答」(相手がスキャンしたときに追加で返す31バイト)に入れる。
         // 【機種差】スキャン応答を返すのが遅い/返さない機種だと、相手からIDが読めず見つけてもらえない。
         val scanResponse = AdvertiseData.Builder()
-            .addServiceData(ParcelUuid(SERVICE_UUID), selfId.toByteArray(Charsets.US_ASCII))
+            .addServiceData(ParcelUuid(SERVICE_UUID), localHandle.toByteArray(Charsets.US_ASCII))
             .setIncludeDeviceName(false)
             .build()
         advertiser.startAdvertising(settings, data, scanResponse, advertiseCallback)
@@ -274,15 +311,32 @@ class BleTransport(
         // 端末IDはスキャン応答側に入っている。広告だけ先に届いた結果ではIDが読めないので、次の結果を待つ。
         val bytes = result.scanRecord?.getServiceData(ParcelUuid(SERVICE_UUID)) ?: return
         val peerId = String(bytes, Charsets.US_ASCII)
-        if (!DeviceId.isValid(peerId) || peerId == selfId) return
+        if (!DeviceId.isValid(peerId) || peerId == localHandle) return
         peerDevices[peerId] = result.device
         listener?.onPeerSeen(peerId)
     }
 
     // ---------------------------------------------------------------- GATTサーバー(受信)
 
-    /** 長いデータは「分割書き込み(prepared write)」で届くので、端末ごとに組み立てる。 */
+    /** 長いデータは「分割書き込み(prepared write)」で届くので、端末ごとに組み立てる。BLEの受信スレッドから触るので lock で守る。 */
     private val preparedWrites = HashMap<String, ByteArrayOutputStream>()
+
+    /** 相手ごとの受信量の記録(受け取った時刻, バイト数)。 */
+    private val received = HashMap<String, ArrayDeque<Pair<Long, Int>>>()
+
+    /**
+     * 受信窓口は、仕組み上どの機器からでも書き込める(見知らぬ人同士で使うため、事前のペアリングができない)。
+     * そこで、1台から受け付ける量と大きさに上限を設けて、悪用されても被害が広がらないようにする。
+     */
+    private fun admit(address: String, size: Int): Boolean = synchronized(received) {
+        val now = SystemClock.elapsedRealtime()
+        if (received.size > 64) received.entries.removeIf { now - (it.value.lastOrNull()?.first ?: 0) > RATE_WINDOW_MS }
+        val q = received.getOrPut(address) { ArrayDeque() }
+        while (q.isNotEmpty() && now - q.first().first > RATE_WINDOW_MS) q.removeFirst()
+        if (q.sumOf { it.second } + size > RATE_MAX_BYTES) return false
+        q.addLast(now to size)
+        true
+    }
 
     private val serverCallback = object : BluetoothGattServerCallback() {
         override fun onServiceAdded(status: Int, service: BluetoothGattService) {
@@ -298,7 +352,7 @@ class BleTransport(
 
         override fun onConnectionStateChange(device: BluetoothDevice, status: Int, newState: Int) {
             if (newState == BluetoothProfile.STATE_DISCONNECTED) {
-                handler.post { preparedWrites.remove(device.address) }
+                synchronized(preparedWrites) { preparedWrites.remove(device.address) }
             }
         }
 
@@ -313,29 +367,42 @@ class BleTransport(
         ) {
             val server = gattServer ?: return
             val bytes = value ?: ByteArray(0)
-            if (characteristic.uuid != INBOX_UUID) {
-                if (responseNeeded) server.sendResponse(device, requestId, BluetoothGatt.GATT_FAILURE, offset, null)
-                return
+            fun reply(status: Int, echo: ByteArray?) {
+                if (responseNeeded) server.sendResponse(device, requestId, status, offset, echo)
             }
+            if (characteristic.uuid != INBOX_UUID) return reply(BluetoothGatt.GATT_FAILURE, null)
+            if (!admit(device.address, bytes.size)) return reply(BluetoothGatt.GATT_FAILURE, null)
+
             if (preparedWrite) {
                 // 分割書き込みの途中。まだ届け先(エンジン)には渡さず、溜めておく。
-                handler.post {
-                    val buf = preparedWrites.getOrPut(device.address) { ByteArrayOutputStream() }
-                    if (offset == buf.size()) buf.write(bytes)
+                val status = synchronized(preparedWrites) {
+                    val buf = preparedWrites[device.address]
+                        ?: if (preparedWrites.size >= MAX_PENDING_WRITERS) null
+                        else ByteArrayOutputStream().also { preparedWrites[device.address] = it }
+                    when {
+                        buf == null -> BluetoothGatt.GATT_FAILURE
+                        offset != buf.size() -> { preparedWrites.remove(device.address); BluetoothGatt.GATT_INVALID_OFFSET }
+                        buf.size() + bytes.size > MAX_PAYLOAD -> {
+                            preparedWrites.remove(device.address); BluetoothGatt.GATT_INVALID_ATTRIBUTE_LENGTH
+                        }
+                        else -> { buf.write(bytes); BluetoothGatt.GATT_SUCCESS }
+                    }
                 }
                 // 分割書き込みの応答は、受け取った値をそのまま返すのが仕様
-                if (responseNeeded) server.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, offset, bytes)
+                reply(status, if (status == BluetoothGatt.GATT_SUCCESS) bytes else null)
             } else {
-                if (responseNeeded) server.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, null)
+                if (offset != 0 || bytes.size > MAX_PAYLOAD) return reply(BluetoothGatt.GATT_INVALID_ATTRIBUTE_LENGTH, null)
+                reply(BluetoothGatt.GATT_SUCCESS, null)
                 handler.post { listener?.onPayloadReceived(bytes) }
             }
         }
 
         override fun onExecuteWrite(device: BluetoothDevice, requestId: Int, execute: Boolean) {
             gattServer?.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, null)
-            handler.post {
-                val buf = preparedWrites.remove(device.address)
-                if (execute && buf != null) listener?.onPayloadReceived(buf.toByteArray())
+            val buf = synchronized(preparedWrites) { preparedWrites.remove(device.address) }
+            if (execute && buf != null) {
+                val data = buf.toByteArray()
+                handler.post { listener?.onPayloadReceived(data) }
             }
         }
     }

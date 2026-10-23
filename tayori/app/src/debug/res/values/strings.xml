@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 実験版は別アプリとして入るので、ホーム画面で見分けられる名前にする -->
+    <string name="app_name">たより 実験版</string>
+</resources>

@@ -6,3 +6,7 @@ local.properties
 .kotlin/
 captures/
 ci-out/
+
+# 公開版の署名鍵は絶対にコミットしない(実験版の tayori-debug.keystore だけは意図的に公開)
+*.jks
+release*.keystore

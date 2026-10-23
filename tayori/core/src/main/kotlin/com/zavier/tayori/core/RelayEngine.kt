@@ -3,7 +3,7 @@ package com.zavier.tayori.core
 import java.util.UUID
 
 data class RelayConfig(
-    /** 送信元が付けるTTL(最大中継回数)。 */
+    /** 送信元が付けるTTL(最大中継回数)。受け取ったTTLがこれを超えていたら、ここまで切り詰める。 */
     val initialTtl: Int = MessageRules.DEFAULT_TTL,
     /**
      * この時間以上見えていなかった端末が再び見えたら「新しい接触」と数える。
@@ -13,22 +13,38 @@ data class RelayConfig(
     val contactGapMs: Long = 10_000,
     /** 送信失敗した相手へ再挑戦するまでの待ち時間(失敗直後に連打して電波を占有しないため)。 */
     val retryBackoffMs: Long = 5_000,
-    /** 中継用に保持するメッセージの上限。超えたら古い順に捨てる。 */
+    /** 中継用に保持するメッセージの上限。超えたら、一番多く持ち込んだ相手の古いものから捨てる。 */
     val maxBufferSize: Int = 500,
+    /** これより古いメッセージは受け取らない(大昔のメッセージの再送や、記憶の溜まりすぎを防ぐ)。 */
+    val maxAgeMs: Long = 24 * 60 * 60 * 1000L,
+    /** これより未来の時刻のメッセージは受け取らない(端末の時計ずれを見込んで1時間まで許す)。 */
+    val maxFutureMs: Long = 60 * 60 * 1000L,
+    /** 1つの相手から [rateWindowMs] の間に受け取る新しいメッセージの上限(大量に送りつける攻撃への備え)。 */
+    val maxNewPerPeer: Int = 30,
+    val rateWindowMs: Long = 60_000,
+    /** 受信済みIDを覚えておく上限件数(古いものから忘れる。[maxAgeMs] より古いものは自然に捨てる)。 */
+    val maxSeen: Int = 20_000,
 )
 
-/** 自分が作ったメッセージ・届いたメッセージ・統計をUIに見せるためのスナップショット。 */
+/** 自分が送ったメッセージの状況。 */
+data class SentItem(val letter: Letter, val sentTo: Set<String>, val sendCount: Int)
+
+/** 自分が中継のために預かっているメッセージ(中身は読めないので、外側の情報だけ)。 */
+data class RelayItem(val id: UUID, val destId: String, val hop: Int, val ttl: Int, val sentTo: Set<String>, val sendCount: Int)
+
+/** UIに見せるためのスナップショット。 */
 data class EngineSnapshot(
     val selfId: String,
-    val inbox: List<Message>,
-    val sentByMe: List<OutboxItem>,
-    val relaying: List<OutboxItem>,
+    val inbox: List<ReceivedLetter>,
+    val sentByMe: List<SentItem>,
+    val relaying: List<RelayItem>,
     val nearbyPeers: List<String>,
     val contactCountTotal: Int,
     val sendCountTotal: Int,
 )
 
-data class OutboxItem(val message: Message, val sentTo: Set<String>, val sendCount: Int)
+/** 宛先が連絡先に登録されていないので、暗号化できず送れない。 */
+class UnknownRecipientException(val destId: String) : IllegalArgumentException("宛先「$destId」は連絡先に登録されていません")
 
 /**
  * 中継ロジック本体(BLEのことは一切知らない)。
@@ -38,13 +54,18 @@ data class OutboxItem(val message: Message, val sentTo: Set<String>, val sendCou
  *  2. 近くに端末が見えるたびに、その端末にまだ渡していないメッセージを渡す
  *  3. 一度見た Message ID は二度と中継しない(重複排除)
  *  4. TTLを使い切ったメッセージは中継しない
- * 宛先が近くにいなくても、人の移動と一緒にメッセージが運ばれていくのが狙い。
+ *
+ * 安全のための決まり:
+ *  - 中身(送り主・状態・本文)は宛先の公開鍵で暗号化し、送り主の署名を付ける(Sealer)
+ *  - 届いた封筒は、IDの形式・TTL・作成時刻・受信ペースを確かめ、ルール違反は捨てる
+ *  - 預かり枠が満杯のときは、一番多く持ち込んだ相手のものから捨てる(自分のメッセージは捨てない)
  *
  * スレッド安全: BLEのコールバックは別スレッドから来るので、状態は lock で守る。
  * Transport や listener の呼び出しは lock の外で行う(Fakeが同期的に折り返し呼んでも詰まらないように)。
  */
 class RelayEngine(
-    val selfId: String,
+    val identity: Identity,
+    private val contacts: ContactBook,
     private val transport: Transport,
     private val log: ExperimentLog,
     private val config: RelayConfig = RelayConfig(),
@@ -52,15 +73,18 @@ class RelayEngine(
     private val newId: () -> UUID = UUID::randomUUID,
 ) : TransportListener {
 
+    val selfId: String get() = identity.id
+
     /** 状態が変わったときに呼ばれる(UI更新用)。どのスレッドから呼ばれるかは不定。 */
     @Volatile
     var onChanged: (() -> Unit)? = null
 
     private class Outgoing(
-        /** 送るときのコピー(hop/ttl は送信用に調整済み)。fromId は送信時に自分のIDで上書きする。 */
-        val packet: Message,
+        /** 送るときの封筒(hop/ttl は送信用に調整済み)。fromId は送信時に自分の一時IDで上書きする。 */
+        val envelope: Envelope,
         val receivedFrom: String?,
-        val isMine: Boolean,
+        /** 自分が書いた手紙なら中身、中継なら null。 */
+        val letter: Letter?,
     ) {
         val sentTo = mutableSetOf<String>()
         var sendCount = 0
@@ -70,14 +94,16 @@ class RelayEngine(
         var lastSeen = Long.MIN_VALUE
         var contacts = 0
         var retryAfter = Long.MIN_VALUE
+        val recentNew = ArrayDeque<Long>()
     }
 
     private val lock = Any()
-    private val seen = HashSet<UUID>()
+    /** 受信済みID → 覚えた時刻(挿入順。古いものから忘れる)。 */
+    private val seen = LinkedHashMap<UUID, Long>()
     private val outbox = LinkedHashMap<UUID, Outgoing>()
     private val peers = HashMap<String, PeerState>()
     private val inFlight = HashSet<Pair<String, UUID>>()
-    private val inbox = mutableListOf<Message>()
+    private val inbox = mutableListOf<ReceivedLetter>()
     private var contactTotal = 0
     private var sendTotal = 0
 
@@ -85,28 +111,31 @@ class RelayEngine(
 
     fun stop() = transport.stop()
 
-    /** 自分からメッセージを送る。近くに端末がいればすぐ渡し、いなければ出会うまで保持する。 */
-    fun sendMessage(destId: String, status: SafetyStatus, text: String): Message {
+    /** 自分からメッセージを送る。宛先の連絡先が必要(その公開鍵で暗号化するため)。 */
+    fun sendMessage(destId: String, status: SafetyStatus, text: String): Letter {
         require(DeviceId.isValid(destId)) { "宛先IDが不正です" }
         require(destId != selfId) { "自分宛てには送れません" }
         require(MessageRules.isValidText(text)) { "本文は${MessageRules.MAX_TEXT_LENGTH}文字以内です" }
+        val recipient = contacts.find(destId) ?: throw UnknownRecipientException(destId)
 
         val now = clock()
+        val letter = Letter(newId(), selfId, destId, status, text, now)
+        val sealed = Sealer.seal(letter, identity, recipient)
         // 送信元が渡すコピーは hop=1(1回飛んで相手に届く)、ttl=初期値(まだ中継していない)
-        val msg = Message(newId(), selfId, destId, selfId, status, text, now, config.initialTtl, 1)
+        val env = Envelope(letter.id, destId, transport.localHandle, config.initialTtl, 1, now, sealed)
         val nearby = synchronized(lock) {
-            seen += msg.id
-            addToOutbox(msg.id, Outgoing(msg, receivedFrom = null, isMine = true))
-            record(LogEvent.CREATED, msg, sentAt = msg.createdAt, hop = 0, ttl = msg.ttl)
+            remember(letter.id, now)
+            addToOutbox(letter.id, Outgoing(env, receivedFrom = null, letter = letter))
+            record(LogEvent.CREATED, letter.id, origin = selfId, dest = destId, status = status, sentAt = now, hop = 0, ttl = env.ttl)
             nearbyPeersLocked(now)
         }
         nearby.forEach(::dispatchTo)
         notifyChanged()
-        return msg
+        return letter
     }
 
     override fun onPeerSeen(peerId: String) {
-        if (peerId == selfId || !DeviceId.isValid(peerId)) return
+        if (peerId == transport.localHandle || !DeviceId.isValid(peerId)) return
         val now = clock()
         val canSend = synchronized(lock) {
             val p = peers.getOrPut(peerId) { PeerState() }
@@ -124,35 +153,62 @@ class RelayEngine(
 
     override fun onPayloadReceived(payload: ByteArray) {
         val now = clock()
-        val msg = PacketCodec.decode(payload)
-        if (msg == null) {
+        val raw = PacketCodec.decode(payload)
+        if (raw == null) {
             synchronized(lock) { record(LogEvent.INVALID_PACKET, null, note = "${payload.size} bytes") }
             return
         }
+        // 自分宛ての開封(暗号の計算)は少し重いので lock の外で行う
+        val mine = raw.destId == selfId
+        val opened = if (mine) Sealer.open(raw, identity, contacts) else null
+
         val nearby: List<String> = synchronized(lock) {
-            if (!seen.add(msg.id)) {
-                record(LogEvent.DUPLICATE, msg, peerId = msg.fromId, sentAt = msg.createdAt,
-                    receivedAt = now, hop = msg.hop, ttl = msg.ttl)
+            val reason = rejectReason(raw, now)
+            if (reason != null) {
+                record(LogEvent.REJECTED, raw.id, dest = raw.destId, peerId = raw.fromId, sentAt = raw.createdAt,
+                    receivedAt = now, hop = raw.hop, ttl = raw.ttl, note = reason)
                 return
             }
+            // TTLの水増し対策: 決まった上限を超えていたら切り詰める
+            val env = if (raw.ttl > config.initialTtl) raw.copy(ttl = config.initialTtl) else raw
+            if (seen.containsKey(env.id)) {
+                record(LogEvent.DUPLICATE, env.id, dest = env.destId, peerId = env.fromId, sentAt = env.createdAt,
+                    receivedAt = now, hop = env.hop, ttl = env.ttl)
+                return
+            }
+            if (!allowNewFrom(env.fromId, now)) {
+                record(LogEvent.REJECTED, env.id, dest = env.destId, peerId = env.fromId, note = "受信しすぎ(1分あたり${config.maxNewPerPeer}件まで)")
+                return
+            }
+            remember(env.id, now)
             when {
-                msg.destId == selfId -> {
-                    inbox += msg
-                    record(LogEvent.DELIVERED, msg, peerId = msg.fromId, sentAt = msg.createdAt,
-                        receivedAt = now, hop = msg.hop, ttl = msg.ttl)
+                mine -> {
+                    when (opened) {
+                        is OpenResult.Ok -> {
+                            val l = opened.letter
+                            inbox += ReceivedLetter(l, env.hop, now, opened.verified)
+                            record(LogEvent.DELIVERED, env.id, origin = l.originId, dest = l.destId, status = l.status,
+                                peerId = env.fromId, sentAt = l.createdAt, receivedAt = now, hop = env.hop, ttl = env.ttl,
+                                note = if (opened.verified) "本人確認済み" else "未登録の送り主")
+                        }
+                        is OpenResult.Spoofed -> record(LogEvent.SPOOFED, env.id, origin = opened.claimedOrigin, dest = env.destId,
+                            peerId = env.fromId, sentAt = env.createdAt, receivedAt = now, hop = env.hop, note = "署名が合わない")
+                        else -> record(LogEvent.UNREADABLE, env.id, dest = env.destId, peerId = env.fromId,
+                            sentAt = env.createdAt, receivedAt = now, hop = env.hop)
+                    }
                     emptyList()
                 }
-                msg.ttl <= 0 -> {
-                    record(LogEvent.TTL_EXPIRED, msg, peerId = msg.fromId, sentAt = msg.createdAt,
-                        receivedAt = now, hop = msg.hop, ttl = msg.ttl)
+                env.ttl <= 0 -> {
+                    record(LogEvent.TTL_EXPIRED, env.id, dest = env.destId, peerId = env.fromId, sentAt = env.createdAt,
+                        receivedAt = now, hop = env.hop, ttl = env.ttl)
                     emptyList()
                 }
                 else -> {
-                    record(LogEvent.RECEIVED, msg, peerId = msg.fromId, sentAt = msg.createdAt,
-                        receivedAt = now, hop = msg.hop, ttl = msg.ttl)
+                    record(LogEvent.RECEIVED, env.id, dest = env.destId, peerId = env.fromId, sentAt = env.createdAt,
+                        receivedAt = now, hop = env.hop, ttl = env.ttl)
                     // 中継するコピーは「もう1回飛ぶ」ので hop+1、「中継を1回使う」ので ttl-1
-                    val relayCopy = msg.copy(hop = msg.hop + 1, ttl = msg.ttl - 1)
-                    addToOutbox(msg.id, Outgoing(relayCopy, receivedFrom = msg.fromId, isMine = false))
+                    val relayCopy = env.copy(hop = env.hop + 1, ttl = env.ttl - 1)
+                    addToOutbox(env.id, Outgoing(relayCopy, receivedFrom = env.fromId, letter = null))
                     nearbyPeersLocked(now)
                 }
             }
@@ -162,72 +218,127 @@ class RelayEngine(
     }
 
     fun snapshot(): EngineSnapshot = synchronized(lock) {
-        val items = outbox.values.map { OutboxItem(it.packet, it.sentTo.toSet(), it.sendCount) to it.isMine }
         EngineSnapshot(
             selfId = selfId,
             inbox = inbox.toList(),
-            sentByMe = items.filter { it.second }.map { it.first },
-            relaying = items.filter { !it.second }.map { it.first },
+            sentByMe = outbox.values.mapNotNull { o -> o.letter?.let { SentItem(it, o.sentTo.toSet(), o.sendCount) } },
+            relaying = outbox.values.filter { it.letter == null }.map { o ->
+                RelayItem(o.envelope.id, o.envelope.destId, o.envelope.hop, o.envelope.ttl, o.sentTo.toSet(), o.sendCount)
+            },
             nearbyPeers = nearbyPeersLocked(clock()),
             contactCountTotal = contactTotal,
             sendCountTotal = sendTotal,
         )
     }
 
-    /** [peerId] にまだ渡していないメッセージをまとめて送る。 */
-    private fun dispatchTo(peerId: String) {
-        val jobs: List<Message> = synchronized(lock) {
-            outbox.values
-                .filter { o ->
-                    peerId != o.receivedFrom &&
-                        peerId != o.packet.originId &&
-                        peerId !in o.sentTo &&
-                        (peerId to o.packet.id) !in inFlight
-                }
-                .map { o ->
-                    inFlight += peerId to o.packet.id
-                    o.packet.copy(fromId = selfId)
-                }
-        }
-        for (m in jobs) {
-            transport.send(peerId, PacketCodec.encode(m)) { ok -> onSendResult(peerId, m, ok) }
+    /** 受け取ってはいけない封筒なら理由を返す。 */
+    private fun rejectReason(e: Envelope, now: Long): String? = when {
+        !DeviceId.isValid(e.destId) -> "宛先IDの形式が不正"
+        !DeviceId.isValid(e.fromId) -> "中継元IDの形式が不正"
+        e.hop < 1 || e.hop > config.initialTtl + 1 -> "ホップ数が不正(${e.hop})"
+        now - e.createdAt > config.maxAgeMs -> "古すぎる"
+        e.createdAt - now > config.maxFutureMs -> "未来の時刻"
+        else -> null
+    }
+
+    /** 同じ相手から短時間に大量の新しいメッセージが来ていないか。 */
+    private fun allowNewFrom(fromId: String, now: Long): Boolean {
+        if (peers.size > MAX_PEERS) prunePeers(now)
+        val p = peers.getOrPut(fromId) { PeerState() }
+        while (p.recentNew.isNotEmpty() && now - p.recentNew.first() > config.rateWindowMs) p.recentNew.removeFirst()
+        if (p.recentNew.size >= config.maxNewPerPeer) return false
+        p.recentNew.addLast(now)
+        return true
+    }
+
+    /** 一時IDを次々に変えて送ってくる相手で、相手の記録が溜まりすぎないように、しばらく音沙汰のない相手を忘れる。 */
+    private fun prunePeers(now: Long) {
+        val idle = config.rateWindowMs.coerceAtLeast(config.contactGapMs)
+        peers.entries.removeIf { (_, p) ->
+            (p.lastSeen == Long.MIN_VALUE || now - p.lastSeen > idle) &&
+                (p.recentNew.isEmpty() || now - p.recentNew.last() > idle)
         }
     }
 
-    private fun onSendResult(peerId: String, m: Message, ok: Boolean) {
+    private companion object {
+        const val MAX_PEERS = 1_000
+    }
+
+    /** 受信済みIDを覚える。古いもの・多すぎる分は忘れる(どのみち古いメッセージは受け取らないので安全)。 */
+    private fun remember(id: UUID, now: Long) {
+        seen[id] = now
+        val it = seen.entries.iterator()
+        while (it.hasNext()) {
+            val e = it.next()
+            if (now - e.value > config.maxAgeMs + config.maxFutureMs || seen.size > config.maxSeen) it.remove() else break
+        }
+    }
+
+    /** [peerId] にまだ渡していないメッセージをまとめて送る。 */
+    private fun dispatchTo(peerId: String) {
+        val handle = transport.localHandle
+        val jobs: List<Envelope> = synchronized(lock) {
+            outbox.values
+                .filter { o ->
+                    peerId != o.receivedFrom &&
+                        peerId !in o.sentTo &&
+                        (peerId to o.envelope.id) !in inFlight
+                }
+                .map { o ->
+                    inFlight += peerId to o.envelope.id
+                    o.envelope.copy(fromId = handle)
+                }
+        }
+        for (e in jobs) {
+            transport.send(peerId, PacketCodec.encode(e)) { ok -> onSendResult(peerId, e, ok) }
+        }
+    }
+
+    private fun onSendResult(peerId: String, e: Envelope, ok: Boolean) {
         synchronized(lock) {
-            inFlight -= peerId to m.id
-            val o = outbox[m.id]
+            inFlight -= peerId to e.id
+            val o = outbox[e.id]
             val p = peers.getOrPut(peerId) { PeerState() }
+            val mineLetter = o?.letter
             if (ok) {
                 sendTotal++
                 o?.let { it.sentTo += peerId; it.sendCount++ }
-                record(LogEvent.SENT, m, peerId = peerId, sentAt = m.createdAt, hop = m.hop, ttl = m.ttl,
-                    peerContacts = p.contacts, sendCountMessage = o?.sendCount)
+                record(LogEvent.SENT, e.id, origin = mineLetter?.originId, dest = e.destId, status = mineLetter?.status,
+                    peerId = peerId, sentAt = e.createdAt, hop = e.hop, ttl = e.ttl, peerContacts = p.contacts, sendCountMessage = o?.sendCount)
             } else {
                 p.retryAfter = clock() + config.retryBackoffMs
-                record(LogEvent.SEND_FAILED, m, peerId = peerId, sentAt = m.createdAt, hop = m.hop, ttl = m.ttl,
-                    peerContacts = p.contacts, sendCountMessage = o?.sendCount)
+                record(LogEvent.SEND_FAILED, e.id, origin = mineLetter?.originId, dest = e.destId, status = mineLetter?.status,
+                    peerId = peerId, sentAt = e.createdAt, hop = e.hop, ttl = e.ttl, peerContacts = p.contacts, sendCountMessage = o?.sendCount)
             }
         }
         notifyChanged()
     }
 
+    /**
+     * 預かり枠に入れる。満杯なら、中継品の中で「一番たくさん持ち込んだ相手」の一番古いものを捨てる。
+     * こうすると、1台が大量のゴミを送ってきても、他の人のメッセージは押し出されにくい。自分のメッセージは捨てない。
+     */
     private fun addToOutbox(id: UUID, o: Outgoing) {
         outbox[id] = o
         while (outbox.size > config.maxBufferSize) {
-            val oldest = outbox.entries.first()
-            outbox.remove(oldest.key)
-            record(LogEvent.BUFFER_EVICTED, oldest.value.packet)
+            val relayed = outbox.values.filter { it.letter == null }
+            if (relayed.isEmpty()) break
+            val heaviest = relayed.groupingBy { it.receivedFrom }.eachCount().maxBy { it.value }.key
+            val victim = relayed.first { it.receivedFrom == heaviest }
+            outbox.remove(victim.envelope.id)
+            record(LogEvent.BUFFER_EVICTED, victim.envelope.id, dest = victim.envelope.destId, peerId = victim.receivedFrom)
         }
     }
 
     private fun nearbyPeersLocked(now: Long): List<String> =
-        peers.filter { now - it.value.lastSeen < config.contactGapMs }.keys.sorted()
+        peers.filter { it.value.lastSeen != Long.MIN_VALUE && now - it.value.lastSeen < config.contactGapMs }.keys.sorted()
 
     private fun record(
         event: LogEvent,
-        m: Message?,
+        id: UUID?,
+        origin: String? = null,
+        dest: String? = null,
+        status: SafetyStatus? = null,
         peerId: String? = null,
         sentAt: Long? = null,
         receivedAt: Long? = null,
@@ -242,10 +353,10 @@ class RelayEngine(
                 logTime = clock(),
                 deviceId = selfId,
                 event = event,
-                messageId = m?.id?.toString(),
-                originId = m?.originId,
-                destId = m?.destId,
-                status = m?.status,
+                messageId = id?.toString(),
+                originId = origin,
+                destId = dest,
+                status = status,
                 peerId = peerId,
                 sentAt = sentAt,
                 receivedAt = receivedAt,

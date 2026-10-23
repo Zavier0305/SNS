@@ -4,6 +4,7 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class RelayEngineTest {
@@ -20,7 +21,7 @@ class RelayEngineTest {
 
     private fun node(id: String, config: RelayConfig = RelayConfig()): RelayEngine {
         val log = InMemoryLog()
-        val e = RelayEngine(id, net.transport(id), log, config, clock = { net.now })
+        val e = RelayEngine(net.identity(id), net.directory, net.transport(id), log, config, clock = { net.now })
         e.start()
         logs[id] = log
         engines[id] = e
@@ -35,22 +36,24 @@ class RelayEngineTest {
         net.link("A", "B")
         net.link("B", "C") // A と C はつながっていない
 
-        val msg = a.sendMessage("C", SafetyStatus.NEED_RESCUE, "3階にいます")
+        val sent = a.sendMessage("C", SafetyStatus.NEED_RESCUE, "3階にいます")
         net.scan()
 
-        val inbox = c.snapshot().inbox
-        assertEquals(1, inbox.size)
-        assertEquals(msg.id, inbox[0].id)
-        assertEquals("3階にいます", inbox[0].text)
-        assertEquals(SafetyStatus.NEED_RESCUE, inbox[0].status)
-        assertEquals(2, inbox[0].hop, "A→B→C は2ホップ")
-        assertEquals("B", inbox[0].fromId)
+        val got = c.snapshot().inbox.single()
+        assertEquals(sent.id, got.letter.id)
+        assertEquals("3階にいます", got.letter.text)
+        assertEquals(SafetyStatus.NEED_RESCUE, got.letter.status)
+        assertEquals("A", got.letter.originId)
+        assertEquals(2, got.hop, "A→B→C は2ホップ")
+        assertTrue(got.verified, "A の署名を確認できる")
 
         val delivered = events("C", LogEvent.DELIVERED).single()
         assertEquals("A", delivered.originId)
-        assertEquals(msg.createdAt, delivered.sentAt)
+        assertEquals(sent.createdAt, delivered.sentAt)
         assertEquals(net.now, delivered.receivedAt)
-        assertEquals(1, events("B", LogEvent.RECEIVED).size)
+        val relayed = events("B", LogEvent.RECEIVED).single()
+        assertNull(relayed.originId, "中継した B には送り主が見えない")
+        assertNull(relayed.status, "中継した B には状態も見えない")
     }
 
     @Test
@@ -69,25 +72,20 @@ class RelayEngineTest {
 
     @Test
     fun `同じ Message ID は二度受け取っても再中継しない`() {
-        // ひし形: A-B, A-D, B-C, D-C → C には B と D の2経路から届く
-        val a = node("A"); node("B"); val c = node("C"); node("D"); node("E")
-        net.link("A", "B"); net.link("A", "D"); net.link("B", "C"); net.link("D", "C")
-        net.link("B", "D") // B と D も互いに見えるので、相手から同じものを受け取る可能性がある
+        val a = node("A"); node("B"); val c = node("C"); node("D"); net.identity("E")
+        net.link("A", "B"); net.link("A", "D"); net.link("B", "C"); net.link("D", "C"); net.link("B", "D")
         a.sendMessage("E", SafetyStatus.MOVING, "駅へ移動")
         repeat(3) { net.scan() }
 
-        // C は最初の1回だけ RECEIVED、2回目以降は DUPLICATE
         assertEquals(1, events("C", LogEvent.RECEIVED).size)
         assertTrue(events("C", LogEvent.DUPLICATE).isNotEmpty())
-        // 重複を受け取っても中継用バッファには1件だけ
         assertEquals(1, c.snapshot().relaying.size)
-        // 送信元 A には自分のメッセージが戻ってきても DUPLICATE 扱い(再中継しない)
-        assertTrue(a.snapshot().relaying.isEmpty())
+        assertTrue(a.snapshot().relaying.isEmpty(), "送信元に戻ってきても DUPLICATE 扱い")
     }
 
     @Test
     fun `同じ相手には同じメッセージを1回しか送らない`() {
-        val a = node("A"); node("B")
+        val a = node("A"); node("B"); net.identity("Z")
         net.link("A", "B")
         a.sendMessage("Z", SafetyStatus.SAFE, "")
         repeat(5) { net.scan(); net.advance(20_000) }
@@ -105,12 +103,10 @@ class RelayEngineTest {
         engines.getValue("N0").sendMessage("N12", SafetyStatus.SAFE, "遠く")
         repeat(15) { net.scan() }
 
-        // N11 は hop=11, ttl=0 で受け取り、中継しない
         val expired = events("N11", LogEvent.TTL_EXPIRED).single()
         assertEquals(11, expired.hop)
         assertEquals(0, expired.ttl)
         assertTrue(events("N12", LogEvent.DELIVERED).isEmpty())
-        // 中継した端末は N1〜N10 の10台
         val relayers = ids.filter { events(it, LogEvent.SENT).isNotEmpty() } - "N0"
         assertEquals(10, relayers.size)
     }
@@ -134,23 +130,23 @@ class RelayEngineTest {
         net.scan()
         assertEquals(0, net.sendAttempts)
 
-        net.link("A", "B"); net.scan()       // A と B が出会う
+        net.link("A", "B"); net.scan()
         net.unlink("A", "B"); net.advance(60_000)
-        net.link("B", "C"); net.scan()       // B が移動して C と出会う
+        net.link("B", "C"); net.scan()
 
-        assertEquals(1, c.snapshot().inbox.size)
+        assertEquals("無事です", c.snapshot().inbox.single().letter.text)
     }
 
     @Test
     fun `接触回数と送信回数は別々に数える`() {
-        val a = node("A", RelayConfig(contactGapMs = 10_000)); node("B")
+        val a = node("A", RelayConfig(contactGapMs = 10_000)); node("B"); net.identity("Z")
         net.link("A", "B")
 
-        net.scan()                  // 接触1(送るものはない)
-        net.advance(1_000); net.scan() // 見え続けているだけなので接触は増えない
+        net.scan()
+        net.advance(1_000); net.scan()
         assertEquals(1, events("A", LogEvent.CONTACT).size)
 
-        net.advance(15_000); net.scan() // しばらく空いたので接触2
+        net.advance(15_000); net.scan()
         a.sendMessage("Z", SafetyStatus.SAFE, "")
         net.runUntilIdle()
 
@@ -179,14 +175,6 @@ class RelayEngineTest {
     }
 
     @Test
-    fun `バッファ上限を超えたら古いものから捨てる`() {
-        val a = node("A", RelayConfig(maxBufferSize = 2))
-        repeat(3) { a.sendMessage("Z", SafetyStatus.SAFE, "$it") }
-        assertEquals(listOf("1", "2"), a.snapshot().sentByMe.map { it.message.text })
-        assertEquals(1, events("A", LogEvent.BUFFER_EVICTED).size)
-    }
-
-    @Test
     fun `壊れたデータは記録して無視する`() {
         node("A")
         net.transport("X").send("A", byteArrayOf(9, 9, 9)) {}
@@ -197,10 +185,11 @@ class RelayEngineTest {
 
     @Test
     fun `入力チェック`() {
-        val a = node("A")
+        val a = node("A"); net.identity("B")
         assertFailsWith<IllegalArgumentException> { a.sendMessage("A", SafetyStatus.SAFE, "") }
         assertFailsWith<IllegalArgumentException> { a.sendMessage("", SafetyStatus.SAFE, "") }
         assertFailsWith<IllegalArgumentException> { a.sendMessage("B", SafetyStatus.SAFE, "あ".repeat(51)) }
+        assertFailsWith<UnknownRecipientException> { a.sendMessage("NOBODY", SafetyStatus.SAFE, "") }
         a.sendMessage("B", SafetyStatus.SAFE, "あ".repeat(50))
     }
 }

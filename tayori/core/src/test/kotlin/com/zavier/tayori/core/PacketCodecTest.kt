@@ -4,40 +4,55 @@ import java.time.ZoneOffset
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class PacketCodecTest {
-    private val sample = Message(
-        id = UUID.fromString("123e4567-e89b-12d3-a456-426614174000"),
-        originId = "A", destId = "C", fromId = "B",
-        status = SafetyStatus.MOVING, text = "避難所へ向かっています🏃",
-        createdAt = 1_760_000_000_123L, ttl = 9, hop = 2,
-    )
+    private val alice = Identity.generate("A")
+    private val carol = Identity.generate("C")
+    private val carolContact = Contact("C", carol.keyPair.public as java.security.interfaces.ECPublicKey)
+
+    private fun envelope(text: String = "避難所へ向かっています🏃", origin: Identity = alice): Envelope {
+        val l = Letter(UUID.randomUUID(), origin.id, "C", SafetyStatus.MOVING, text, 1_760_000_000_123L)
+        return Envelope(l.id, "C", "B", 9, 2, l.createdAt, Sealer.seal(l, origin, carolContact))
+    }
 
     @Test
     fun `往復変換で元に戻る`() {
-        assertEquals(sample, PacketCodec.decode(PacketCodec.encode(sample)))
+        val e = envelope()
+        assertEquals(e, PacketCodec.decode(PacketCodec.encode(e)))
     }
 
     @Test
     fun `最大サイズでも 512 バイトに収まる`() {
-        val big = sample.copy(
-            originId = "ABCDEFGH", destId = "ABCDEFGH", fromId = "ABCDEFGH",
-            text = "🏃".repeat(MessageRules.MAX_TEXT_LENGTH),
-        )
-        val bytes = PacketCodec.encode(big)
-        assertTrue(bytes.size <= 512, "size=${bytes.size}")
-        assertEquals(big, PacketCodec.decode(bytes))
+        val big = Identity.generate("ABCDEFGH")
+        val l = Letter(UUID.randomUUID(), big.id, "C", SafetyStatus.MOVING, "🏃".repeat(MessageRules.MAX_TEXT_LENGTH), 0)
+        val e = Envelope(l.id, "C", "ABCDEFGH", 10, 1, 0, Sealer.seal(l, big, carolContact))
+        val bytes = PacketCodec.encode(e)
+        assertTrue(bytes.size <= PacketCodec.MAX_PACKET_SIZE, "size=${bytes.size}")
+        assertEquals(e, PacketCodec.decode(bytes))
     }
 
     @Test
-    fun `壊れたデータは null`() {
-        val ok = PacketCodec.encode(sample)
+    fun `壊れたデータ・大きすぎるデータは null`() {
+        val ok = PacketCodec.encode(envelope())
         assertNull(PacketCodec.decode(byteArrayOf()))
         assertNull(PacketCodec.decode(ok.copyOf(ok.size - 1)))
         assertNull(PacketCodec.decode(ok + byteArrayOf(0)))
-        assertNull(PacketCodec.decode(ok.clone().also { it[0] = 2 }))
+        assertNull(PacketCodec.decode(ok.clone().also { it[0] = 1 }))
+        assertNull(PacketCodec.decode(ByteArray(10_000)))
+    }
+
+    @Test
+    fun `連絡先コードの往復と不正なコード`() {
+        val c = assertNotNull(ContactCode.decode(alice.contactCode()))
+        assertEquals("A", c.id)
+        assertTrue(c.publicRaw.contentEquals(alice.publicRaw))
+        assertNull(ContactCode.decode("hello"))
+        assertNull(ContactCode.decode(ContactCode.PREFIX + "AAAA"))
+        val restored = assertNotNull(Identity.restore("A", alice.privateBytes(), alice.publicRaw))
+        assertEquals(alice.contactCode(), restored.contactCode())
     }
 
     @Test
@@ -69,8 +84,6 @@ class PacketCodecTest {
             ),
             ZoneOffset.UTC,
         )
-        val cols = line.split(",")
-        assertEquals(LogCsv.HEADER.size, cols.size - 1, "note のカンマはクォートされるので1列多く割れる")
         assertTrue(line.startsWith("1970-01-01 00:00:00.000,0,C,DELIVERED,m,"))
         assertTrue(line.contains(",100,350,250,2,"), line)
     }

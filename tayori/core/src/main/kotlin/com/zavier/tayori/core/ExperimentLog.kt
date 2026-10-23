@@ -26,6 +26,12 @@ enum class LogEvent {
     BUFFER_EVICTED,
     /** 解読できないデータが届いた。 */
     INVALID_PACKET,
+    /** 形式は読めたが、ルール違反(不正なID・古すぎる・未来の時刻・受信しすぎ)なので捨てた。 */
+    REJECTED,
+    /** 自分宛てだが開封できなかった(自分の鍵で暗号化されていない・書き換えられている)。 */
+    UNREADABLE,
+    /** 登録済みの送り主を名乗っているのに署名が合わない(なりすまし)ので捨てた。 */
+    SPOOFED,
 }
 
 /**
@@ -95,15 +101,25 @@ object LogCsv {
     fun toLine(e: LogEntry, zone: ZoneId = ZoneId.systemDefault()): String {
         // latency_ms は端末間の時計ずれをそのまま含む(実験前に全端末の時刻を自動設定にしておくこと)
         val latency = if (e.sentAt != null && e.receivedAt != null) e.receivedAt - e.sentAt else null
+        // 文字の列(他の端末から届いた値が入りうる)は数式として動かないよう無害化する。数値の列はそのまま
+        val t = { v: String? -> escape(neutralize(v ?: "")) }
+        val n = { v: Number? -> v?.toString() ?: "" }
         return listOf(
-            FORMATTER.format(Instant.ofEpochMilli(e.logTime).atZone(zone)),
-            e.logTime, e.deviceId, e.event.name, e.messageId,
-            e.originId, e.destId, e.status?.label, e.peerId,
-            e.sentAt, e.receivedAt, latency, e.hop, e.ttl,
-            e.contactCountTotal, e.peerContactCount,
-            e.sendCountMessage, e.sendCountTotal, e.note,
-        ).joinToString(",") { escape(it?.toString() ?: "") }
+            t(FORMATTER.format(Instant.ofEpochMilli(e.logTime).atZone(zone))),
+            n(e.logTime), t(e.deviceId), t(e.event.name), t(e.messageId),
+            t(e.originId), t(e.destId), t(e.status?.label), t(e.peerId),
+            n(e.sentAt), n(e.receivedAt), n(latency), n(e.hop), n(e.ttl),
+            n(e.contactCountTotal), n(e.peerContactCount),
+            n(e.sendCountMessage), n(e.sendCountTotal), t(e.note),
+        ).joinToString(",")
     }
+
+    /**
+     * CSVインジェクション対策: = + - @ などで始まる文字は、Excelが数式として実行してしまう。
+     * 先頭に ' を付けて「ただの文字」として扱わせる。
+     */
+    fun neutralize(value: String): String =
+        if (value.isNotEmpty() && value[0] in "=+-@\t\r") "'$value" else value
 
     /** CSVのエスケープ: カンマ・改行・ダブルクォートを含む値は "..." で囲み、" は "" にする。 */
     fun escape(value: String): String =

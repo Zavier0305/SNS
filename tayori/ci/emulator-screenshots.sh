@@ -2,7 +2,7 @@
 # エミュレータにAPKを入れ、画面を操作してスクリーンショットを撮る(GitHub Actions 用)。
 # Bluetoothの実通信はエミュレータでは確認できないので、画面と操作の流れの確認が目的。
 set -u
-PKG=com.zavier.tayori
+PKG=com.zavier.tayori.exp
 OUT=ci-out
 mkdir -p "$OUT"
 
@@ -29,7 +29,7 @@ adb logcat -c
 adb shell screenrecord --bit-rate 2000000 /sdcard/demo.mp4 &
 REC=$!
 sleep 1
-adb shell am start -n $PKG/.app.MainActivity
+adb shell am start -n $PKG/com.zavier.tayori.app.MainActivity
 sleep 5
 shot 01-launch
 

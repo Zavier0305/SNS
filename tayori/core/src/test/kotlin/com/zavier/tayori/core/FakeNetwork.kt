@@ -19,6 +19,12 @@ class FakeNetwork {
 
     fun transport(id: String): FakeTransport = FakeTransport(id, this).also { nodes[id] = it }
 
+    /** テスト用の「全員が全員の連絡先を知っている」名簿。 */
+    val identities = mutableMapOf<String, Identity>()
+    val directory = ContactBook { id -> identities[id]?.let { Contact(it.id, it.keyPair.public as java.security.interfaces.ECPublicKey) } }
+
+    fun identity(id: String): Identity = identities.getOrPut(id) { Identity.generate(id) }
+
     fun link(a: String, b: String) {
         links += setOf(a, b)
     }
@@ -68,6 +74,9 @@ class FakeNetwork {
 class FakeTransport(val id: String, private val network: FakeNetwork) : Transport {
     var listener: TransportListener? = null
         private set
+
+    /** テストでは一時IDを変えず、端末IDと同じにしておく(どの端末か読みやすくするため)。 */
+    override val localHandle: String get() = id
 
     override fun start(listener: TransportListener) {
         this.listener = listener
