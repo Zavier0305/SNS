@@ -35,49 +35,59 @@ adb shell screenrecord --bit-rate 3000000 --time-limit 180 /sdcard/demo.mp4 &
 REC=$!
 sleep 1
 adb shell am start -n $PKG/com.zavier.tayori.app.MainActivity
-sleep 4
-shot 01-launch
+sleep 5
+shot 01-first-run
 
-# 1. 端末IDを A にする
-tap "edit:0" up
+# 記録タブで端末IDを A にする
+tap "text:記録"
+tap "edit:0"
 adb shell input keyevent KEYCODE_MOVE_END
 for i in $(seq 1 10); do adb shell input keyevent KEYCODE_DEL; done
 type_text A
-tap "text:IDを保存" up
+tap "text:端末IDを保存"
 sleep 2
-shot 02-id-saved
+shot 02-record
 
-# 2. 自分の連絡先コード(QR)を見せる
-adb shell input swipe 160 500 160 200 600
-sleep 3
+# 連絡先タブで C のコードを登録し、名前を付ける
+tap "text:連絡先"
+sleep 2
 shot 03-my-code
-
-# 3. 相手(C)の連絡先コードを貼り付けて登録する
-tap "text:相手の連絡先コードを貼り付け(TAYORI1:…)"
+tap "edit:0"
 type_text "$C_CODE"
-tap "text:連絡先に追加"
+tap "edit:1"
+type_text "Grandma"
+tap "text:登録する"
 sleep 2
 shot 04-contact-added
 
-# 4. 中継を開始
-tap "text:中継を開始" up
-sleep 4
-shot 05-started
-
-# 5. C 宛てに「要救助」を送る
-tap "text:宛先の端末ID"
-type_text C
-tap "text:要救助"
-tap "text:ひとこと(50文字以内・省略可)"
-type_text "3F-west"
-tap "text:送信"
+# 安否タブ(中継前)
+tap "text:安否"
 sleep 2
-shot 06-sent
+shot 05-safety-stopped
 
-# 6. 送ったメッセージを確認
-scroll_to "text:⑥ 実験ログ"
-sleep 3
-shot 07-sent-list
+# 中継を開始
+tap "text:中継を開始する"
+sleep 6
+shot 06-safety-running
+
+# ワンタップで無事を伝える
+tap "text:自分は無事と伝える"
+sleep 2
+shot 07-sent-safe
+
+# 要救助をひとこと付きで伝える
+tap "text:要救助を伝える"
+sleep 1
+tap "edit:0"
+type_text "2F-west"
+tap "text:伝える"
+sleep 2
+shot 08-sent-sos
+
+# 記録タブで送った安否を確認
+tap "text:記録"
+sleep 2
+shot 09-record-sent
 sleep 2
 
 adb shell pkill -INT screenrecord || true

@@ -97,9 +97,24 @@ object TayoriRuntime {
     @Synchronized
     fun removeContact(id: String) {
         val rest = contacts().filter { it.id != id }.map { ContactCode.encode(it.id, it.publicRaw) }.toSet()
-        prefs.edit().putStringSet(KEY_CONTACTS, rest).apply()
+        prefs.edit().putStringSet(KEY_CONTACTS, rest).remove(KEY_NAME_PREFIX + id).apply()
         notifyChanged()
     }
+
+    /** 連絡先に付けた名前(この端末の中だけで使う。相手には伝わらない)。未設定なら null。 */
+    fun contactName(id: String): String? = prefs.getString(KEY_NAME_PREFIX + id, null)?.takeIf { it.isNotBlank() }
+
+    /** 画面に出す名前: 付けた名前があればそれ、なければ端末ID。 */
+    fun displayName(id: String): String = contactName(id) ?: id
+
+    fun setContactName(id: String, name: String) {
+        val n = name.trim().take(MAX_NAME_LENGTH)
+        prefs.edit().apply { if (n.isEmpty()) remove(KEY_NAME_PREFIX + id) else putString(KEY_NAME_PREFIX + id, n) }.apply()
+        notifyChanged()
+    }
+
+    const val MAX_NAME_LENGTH = 20
+    private const val KEY_NAME_PREFIX = "contact_name_"
 
     // ---------------------------------------------------------------- 開始・停止
 
