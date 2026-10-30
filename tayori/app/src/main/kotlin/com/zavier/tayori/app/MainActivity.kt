@@ -382,7 +382,8 @@ class MainActivity : Activity() {
                 text("${i + 1}", 12f, INK, bold).apply { gravity = Gravity.CENTER; background = outline(INK, dp(12)) },
                 LinearLayout.LayoutParams(dp(24), dp(24)).apply { rightMargin = dp(12) },
             )
-            r.addView(text(s, 14f, INK), LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+            // 同梱フォントは文字の下端が行の高さからはみ出すので、下に余白をとって切れないようにする
+            r.addView(text(s, 14f, INK).apply { setPadding(0, 0, 0, dp(6)) }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
             box.addView(r)
         }
         page.addView(box)
