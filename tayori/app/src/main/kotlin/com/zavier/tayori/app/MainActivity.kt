@@ -29,6 +29,7 @@ import android.text.style.ForegroundColorSpan
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowInsets
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.ImageView
@@ -114,7 +115,7 @@ class MainActivity : Activity() {
         window.statusBarColor = BG
         @Suppress("DEPRECATION")
         window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
-        setContentView(buildShell())
+        setContentView(buildShell().also(::avoidSystemBars))
         render(force = true)
     }
 
@@ -131,6 +132,22 @@ class MainActivity : Activity() {
     }
 
     // ================================================================ 骨組み
+
+    /**
+     * Android 15 以降は画面がステータスバー・ナビゲーションバーの下まで広がる(edge-to-edge)。
+     * そのままだと下端のタブがナビゲーションバーに隠れて押せないので、バーの分だけ内側に余白を取る。
+     * キーボード(IME)が出たときも、入力欄や下のボタンが隠れないように同じ扱いにする。
+     */
+    private fun avoidSystemBars(root: View) {
+        // Android 14 以前はOSがバーの分を空けてくれるので、ここで足すと余白が二重になる
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.VANILLA_ICE_CREAM) return
+        root.setOnApplyWindowInsetsListener { v, insets ->
+            val bars = insets.getInsets(WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout() or WindowInsets.Type.ime())
+            v.setPadding(bars.left, bars.top, bars.right, bars.bottom)
+            insets
+        }
+        root.requestApplyInsets()
+    }
 
     private fun buildShell(): View {
         val root = LinearLayout(this).apply {
