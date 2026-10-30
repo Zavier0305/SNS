@@ -423,10 +423,8 @@ class MainActivity : Activity() {
 
     /** 要救助・移動中は、ひとことを添えられるようにする(無事はワンタップ)。 */
     private fun compose(status: SafetyStatus) {
-        val input = EditText(this).apply {
-            hint = if (status == SafetyStatus.NEED_RESCUE) "例: 2階にいる。階段がこわれた" else "例: 中央体育館へ向かっています"
+        val input = field(if (status == SafetyStatus.NEED_RESCUE) "例: 2階にいる。階段がこわれた" else "例: 中央体育館へ向かっています").apply {
             filters = arrayOf(InputFilter.LengthFilter(MessageRules.MAX_TEXT_LENGTH * 2))
-            typeface = regular
         }
         AlertDialog.Builder(this)
             .setTitle("「${status.label}」を伝える")
@@ -477,10 +475,8 @@ class MainActivity : Activity() {
 
         // 相手のコードを登録
         pad.addView(text("相手のコードを登録", 13f, SUB))
-        val codeIn = EditText(this).apply { hint = "相手の連絡先コードを貼り付け(TAYORI1:…)"; typeface = regular; textSize = 14f }
-        val nameIn = EditText(this).apply {
-            hint = "名前(例: 母・おばあちゃん)"
-            typeface = regular
+        val codeIn = field("相手の連絡先コードを貼り付け(TAYORI1:…)")
+        val nameIn = field("名前(例: 母・おばあちゃん)").apply {
             filters = arrayOf(InputFilter.LengthFilter(TayoriRuntime.MAX_NAME_LENGTH))
             setSingleLine()
         }
@@ -738,6 +734,16 @@ class MainActivity : Activity() {
         textSize = sp
         setTextColor(color)
         typeface = face
+        // 同梱フォントは行の高さが小さめなので、2行以上になったときに重ならないよう行間を広げる
+        setLineSpacing(0f, 1.3f)
+    }
+
+    /** 入力欄も同じフォントと行間にそろえる。 */
+    private fun field(hintText: String) = EditText(this).apply {
+        hint = hintText
+        typeface = regular
+        textSize = 15f
+        setLineSpacing(0f, 1.3f)
     }
 
     private fun rule() = View(this).apply {
