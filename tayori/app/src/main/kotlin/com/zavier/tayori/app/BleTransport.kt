@@ -56,6 +56,11 @@ class BleTransport(
      * 実験で「同じ相手との接触回数」を数えるときは、この間隔ごとに別の相手として数えられる点に注意。
      */
     private val handleRotationMs: Long = 15 * 60 * 1000L,
+    /**
+     * 実験モード用: 一時IDを変えず、この値(端末ID)を出し続ける。ログの相手欄が A・B・C で読めるようになり、
+     * 同じ相手との接触回数も正しく数えられる。そのかわり追跡されやすくなるので、実験のときだけ使う。
+     */
+    private val fixedHandle: String? = null,
 ) : Transport {
 
     companion object {
@@ -106,7 +111,7 @@ class BleTransport(
     }
 
     @Volatile
-    override var localHandle: String = newHandle()
+    override var localHandle: String = fixedHandle ?: newHandle()
         private set
 
     /** UIに表示するための状態(「広告: 非対応」など)。 */
@@ -151,7 +156,7 @@ class BleTransport(
             }
             openGattServer() // 成功したら onServiceAdded から広告を開始する
             startScan()
-            handler.postDelayed(rotateHandle, handleRotationMs)
+            if (fixedHandle == null) handler.postDelayed(rotateHandle, handleRotationMs)
         }
     }
 
@@ -313,7 +318,8 @@ class BleTransport(
         val peerId = String(bytes, Charsets.US_ASCII)
         if (!DeviceId.isValid(peerId) || peerId == localHandle) return
         peerDevices[peerId] = result.device
-        listener?.onPeerSeen(peerId)
+        // 【機種差】RSSIの値は機種(アンテナ・ケース)によって同じ距離でも5〜10dBほど違うことがある。距離の比較は同じ機種の組で行う
+        listener?.onPeerSeen(peerId, result.rssi)
     }
 
     // ---------------------------------------------------------------- GATTサーバー(受信)

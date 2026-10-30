@@ -32,6 +32,8 @@ enum class LogEvent {
     UNREADABLE,
     /** 登録済みの送り主を名乗っているのに署名が合わない(なりすまし)ので捨てた。 */
     SPOOFED,
+    /** 電波の強さの定期記録(実験モードだけ)。接触中の相手について一定間隔で残す。 */
+    RSSI_SAMPLE,
 }
 
 /**
@@ -65,6 +67,10 @@ data class LogEntry(
     val sendCountMessage: Int? = null,
     /** この端末の累計送信成功回数(全メッセージの合計)。 */
     val sendCountTotal: Int,
+    /** peerId の相手から最後に受けた電波の強さ(dBm)。距離の目安になる。 */
+    val rssi: Int? = null,
+    /** 送信を始めてから相手の受信確認が返るまでの時間(接続・MTU交渉・書き込みをすべて含む)。 */
+    val transferMs: Long? = null,
     val note: String? = null,
 )
 
@@ -91,7 +97,7 @@ object LogCsv {
         "origin_id", "dest_id", "status", "peer_id",
         "sent_at_ms", "received_at_ms", "latency_ms", "hop", "ttl",
         "contact_count_total", "peer_contact_count",
-        "send_count_message", "send_count_total", "note",
+        "send_count_message", "send_count_total", "rssi_dbm", "transfer_ms", "note",
     )
 
     private val FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")
@@ -110,7 +116,7 @@ object LogCsv {
             t(e.originId), t(e.destId), t(e.status?.label), t(e.peerId),
             n(e.sentAt), n(e.receivedAt), n(latency), n(e.hop), n(e.ttl),
             n(e.contactCountTotal), n(e.peerContactCount),
-            n(e.sendCountMessage), n(e.sendCountTotal), t(e.note),
+            n(e.sendCountMessage), n(e.sendCountTotal), n(e.rssi), n(e.transferMs), t(e.note),
         ).joinToString(",")
     }
 

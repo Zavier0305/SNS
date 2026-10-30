@@ -35,12 +35,15 @@ class FakeNetwork {
 
     fun isLinked(a: String, b: String) = setOf(a, b) in links
 
-    /** 1回分のスキャン: 電波の届く端末同士が互いを「見る」。 */
-    fun scan() {
+    /** 1回の送信(接続〜受信確認)にかかる時間の模擬。届いた時点で時計をこれだけ進める。 */
+    var sendDelayMs = 0L
+
+    /** 1回分のスキャン: 電波の届く端末同士が互いを「見る」。[rssi] は電波の強さの模擬値。 */
+    fun scan(rssi: Int? = null) {
         for (pair in links.toList()) {
             val (a, b) = pair.toList()
-            nodes[a]?.listener?.onPeerSeen(b)
-            nodes[b]?.listener?.onPeerSeen(a)
+            nodes[a]?.listener?.onPeerSeen(b, rssi)
+            nodes[b]?.listener?.onPeerSeen(a, rssi)
         }
         runUntilIdle()
     }
@@ -52,6 +55,7 @@ class FakeNetwork {
     internal fun enqueueSend(from: String, to: String, payload: ByteArray, onResult: (Boolean) -> Unit) {
         sendAttempts++
         queue.addLast {
+            now += sendDelayMs
             val target = nodes[to]
             if (!failAllSends && target?.listener != null && isLinked(from, to)) {
                 target.listener!!.onPayloadReceived(payload)

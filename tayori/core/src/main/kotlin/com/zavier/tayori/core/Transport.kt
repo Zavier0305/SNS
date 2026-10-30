@@ -29,8 +29,11 @@ interface Transport {
 }
 
 interface TransportListener {
-    /** 近くに [peerId] の端末が見えた。スキャン結果のたびに何度も呼ばれてよい。 */
-    fun onPeerSeen(peerId: String)
+    /**
+     * 近くに [peerId] の端末が見えた。スキャン結果のたびに何度も呼ばれてよい。
+     * [rssi] はそのときの電波の強さ(dBm。0に近いほど強い)。測れない通信路では null。
+     */
+    fun onPeerSeen(peerId: String, rssi: Int? = null)
 
     /** どこかの端末からデータが届いた。 */
     fun onPayloadReceived(payload: ByteArray)

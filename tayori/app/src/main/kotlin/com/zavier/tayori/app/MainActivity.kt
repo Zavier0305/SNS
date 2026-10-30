@@ -562,6 +562,64 @@ class MainActivity : Activity() {
 
     // ================================================================ 記録(実験と設定)
 
+    /** 実験のための設定: 実験モード(IDの固定・電波の強さの記録)と自動送信。 */
+    private fun renderExperiment(pad: LinearLayout, running: Boolean) {
+        val exp = TayoriRuntime.experimentMode
+        pad.addView(text("実験", 13f, SUB).apply { setPadding(0, dp(22), 0, dp(4)) })
+        pad.addView(kv("実験モード", if (exp) "オン" else "オフ"))
+        pad.addView(
+            text(
+                "オンにすると、周りに見せるIDを端末IDに固定し(記録の相手欄が A・B・C で読めます)、" +
+                    "電波の強さを5秒ごとに記録します。持ち歩くと追跡されやすくなるので、実験のときだけ使ってください。",
+                12f, FAINT,
+            ).apply { setPadding(0, 0, 0, dp(4)) },
+        )
+        pad.addView(
+            secondaryButton(
+                when {
+                    running -> "切り替えは中継を止めてから"
+                    exp -> "実験モードをオフにする"
+                    else -> "実験モードをオンにする"
+                },
+            ) {
+                if (running) return@secondaryButton
+                TayoriRuntime.experimentMode = !exp
+                render(force = true)
+            },
+        )
+        if (!exp) return
+
+        val dest = TayoriRuntime.autoDest
+        TayoriRuntime.autoStopReason?.takeIf { dest == null }?.let { pad.addView(text("自動送信は止まりました: $it", 12f, WARN)) }
+        if (dest != null) {
+            pad.addView(kv("自動送信", "${TayoriRuntime.displayName(dest)}へ${TayoriRuntime.autoIntervalSec}秒ごと・${TayoriRuntime.autoCount}通目"))
+            pad.addView(secondaryButton("自動送信を止める") { TayoriRuntime.stopAutoSend(); render(force = true) })
+            return
+        }
+        pad.addView(text("自動送信(「無事」を決まった間隔で送り続けます)", 12f, SUB).apply { setPadding(0, dp(8), 0, 0) })
+        val destIn = field("宛先の端末ID").apply {
+            setText(TayoriRuntime.lastAutoDest)
+            filters = arrayOf(InputFilter.LengthFilter(DeviceId.MAX_LENGTH))
+        }
+        val intervalIn = field("間隔(秒)").apply {
+            setText(TayoriRuntime.autoIntervalSec.toString())
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER
+            filters = arrayOf(InputFilter.LengthFilter(4))
+        }
+        pad.addView(destIn)
+        pad.addView(intervalIn)
+        pad.addView(
+            secondaryButton(if (running) "自動送信を始める" else "自動送信は中継を開始してから") {
+                if (!running) return@secondaryButton
+                val sec = intervalIn.text.toString().toIntOrNull() ?: 0
+                val err = TayoriRuntime.startAutoSend(destIn.text.toString().trim(), sec)
+                if (err != null) return@secondaryButton toast(err)
+                currentFocus?.clearFocus()
+                render(force = true)
+            },
+        )
+    }
+
     private fun renderRecord() {
         val page = pages.getValue(Tab.RECORD)
         page.removeAllViews()
@@ -623,6 +681,8 @@ class MainActivity : Activity() {
             },
         )
         pad.addView(secondaryButton("電池の最適化を解除する(推奨)") { openBatterySettings() })
+
+        renderExperiment(pad, running)
 
         pad.addView(text("実験ログ", 13f, SUB).apply { setPadding(0, dp(22), 0, dp(4)) })
         pad.addView(kv("記録済み", "${TayoriRuntime.log.lineCount}行"))

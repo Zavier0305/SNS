@@ -192,4 +192,45 @@ class RelayEngineTest {
         assertFailsWith<UnknownRecipientException> { a.sendMessage("NOBODY", SafetyStatus.SAFE, "") }
         a.sendMessage("B", SafetyStatus.SAFE, "あ".repeat(50))
     }
+
+    @Test
+    fun `接触と送信の記録に電波の強さと受け渡し時間が入る`() {
+        val a = node("A"); node("B")
+        net.link("A", "B")
+        net.sendDelayMs = 1_200
+        a.sendMessage("B", SafetyStatus.SAFE, "", logNote = "自動送信 #1")
+        net.scan(rssi = -67)
+
+        assertEquals("自動送信 #1", events("A", LogEvent.CREATED).single().note)
+        assertEquals(-67, events("A", LogEvent.CONTACT).single().rssi)
+        val sent = events("A", LogEvent.SENT).single()
+        assertEquals(1_200, sent.transferMs)
+        assertEquals(-67, sent.rssi)
+        assertEquals(-67, events("B", LogEvent.DELIVERED).single().rssi, "受け取った側にも、送ってきた相手の電波の強さが残る")
+    }
+
+    @Test
+    fun `実験モードでは接触中の電波の強さを一定間隔で記録する`() {
+        node("A", RelayConfig(rssiSampleMs = 5_000)); node("B")
+        net.link("A", "B")
+        listOf(-60, -62, -70, -75, -80).forEach { r ->
+            net.scan(rssi = r)
+            net.advance(2_500)
+        }
+        // 0秒: 接触(サンプル扱いしない)、2.5秒: 間隔不足、5秒: 記録、7.5秒: 間隔不足、10秒: 記録
+        assertEquals(listOf(-70, -80), events("A", LogEvent.RSSI_SAMPLE).map { it.rssi })
+        assertTrue(events("B", LogEvent.RSSI_SAMPLE).isEmpty(), "普段の設定では記録しない")
+    }
+
+    @Test
+    fun `CSVに電波の強さと受け渡し時間の列がある`() {
+        val line = LogCsv.toLine(
+            LogEntry(logTime = 0, deviceId = "A", event = LogEvent.SENT, contactCountTotal = 1, sendCountTotal = 1,
+                rssi = -71, transferMs = 840, note = "n"),
+        )
+        val cols = line.split(",")
+        assertEquals(LogCsv.HEADER.size, cols.size)
+        assertEquals("-71", cols[LogCsv.HEADER.indexOf("rssi_dbm")])
+        assertEquals("840", cols[LogCsv.HEADER.indexOf("transfer_ms")])
+    }
 }

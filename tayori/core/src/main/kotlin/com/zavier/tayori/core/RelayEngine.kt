@@ -24,6 +24,8 @@ data class RelayConfig(
     val rateWindowMs: Long = 60_000,
     /** 受信済みIDを覚えておく上限件数(古いものから忘れる。[maxAgeMs] より古いものは自然に捨てる)。 */
     val maxSeen: Int = 20_000,
+    /** 接触中の相手の電波の強さを、この間隔で RSSI_SAMPLE として記録する。0 なら記録しない(普段は記録が増えすぎるので切る)。 */
+    val rssiSampleMs: Long = 0,
 )
 
 /** 自分が送ったメッセージの状況。 */
@@ -95,6 +97,8 @@ class RelayEngine(
         var contacts = 0
         var retryAfter = Long.MIN_VALUE
         val recentNew = ArrayDeque<Long>()
+        var lastRssi: Int? = null
+        var lastRssiLogged = Long.MIN_VALUE
     }
 
     private val lock = Any()
@@ -112,7 +116,7 @@ class RelayEngine(
     fun stop() = transport.stop()
 
     /** 自分からメッセージを送る。宛先の連絡先が必要(その公開鍵で暗号化するため)。 */
-    fun sendMessage(destId: String, status: SafetyStatus, text: String): Letter {
+    fun sendMessage(destId: String, status: SafetyStatus, text: String, logNote: String? = null): Letter {
         require(DeviceId.isValid(destId)) { "宛先IDが不正です" }
         require(destId != selfId) { "自分宛てには送れません" }
         require(MessageRules.isValidText(text)) { "本文は${MessageRules.MAX_TEXT_LENGTH}文字以内です" }
@@ -126,7 +130,7 @@ class RelayEngine(
         val nearby = synchronized(lock) {
             remember(letter.id, now)
             addToOutbox(letter.id, Outgoing(env, receivedFrom = null, letter = letter))
-            record(LogEvent.CREATED, letter.id, origin = selfId, dest = destId, status = status, sentAt = now, hop = 0, ttl = env.ttl)
+            record(LogEvent.CREATED, letter.id, origin = selfId, dest = destId, status = status, sentAt = now, hop = 0, ttl = env.ttl, note = logNote)
             nearbyPeersLocked(now)
         }
         nearby.forEach(::dispatchTo)
@@ -134,17 +138,22 @@ class RelayEngine(
         return letter
     }
 
-    override fun onPeerSeen(peerId: String) {
+    override fun onPeerSeen(peerId: String, rssi: Int?) {
         if (peerId == transport.localHandle || !DeviceId.isValid(peerId)) return
         val now = clock()
         val canSend = synchronized(lock) {
             val p = peers.getOrPut(peerId) { PeerState() }
             val isNewContact = p.lastSeen == Long.MIN_VALUE || now - p.lastSeen >= config.contactGapMs
             p.lastSeen = now
+            if (rssi != null) p.lastRssi = rssi
             if (isNewContact) {
                 p.contacts++
                 contactTotal++
+                p.lastRssiLogged = now
                 record(LogEvent.CONTACT, null, peerId = peerId, peerContacts = p.contacts)
+            } else if (rssi != null && config.rssiSampleMs > 0 && now - p.lastRssiLogged >= config.rssiSampleMs) {
+                p.lastRssiLogged = now
+                record(LogEvent.RSSI_SAMPLE, null, peerId = peerId)
             }
             now >= p.retryAfter
         }
@@ -277,6 +286,7 @@ class RelayEngine(
     /** [peerId] にまだ渡していないメッセージをまとめて送る。 */
     private fun dispatchTo(peerId: String) {
         val handle = transport.localHandle
+        val startedAt = clock()
         val jobs: List<Envelope> = synchronized(lock) {
             outbox.values
                 .filter { o ->
@@ -290,12 +300,14 @@ class RelayEngine(
                 }
         }
         for (e in jobs) {
-            transport.send(peerId, PacketCodec.encode(e)) { ok -> onSendResult(peerId, e, ok) }
+            transport.send(peerId, PacketCodec.encode(e)) { ok -> onSendResult(peerId, e, ok, startedAt) }
         }
     }
 
-    private fun onSendResult(peerId: String, e: Envelope, ok: Boolean) {
+    /** [startedAt] からの時間には、同じ相手への前の送信を待った時間も含まれる(BLEは1件ずつ順番に送るため)。 */
+    private fun onSendResult(peerId: String, e: Envelope, ok: Boolean, startedAt: Long) {
         synchronized(lock) {
+            val took = clock() - startedAt
             inFlight -= peerId to e.id
             val o = outbox[e.id]
             val p = peers.getOrPut(peerId) { PeerState() }
@@ -304,11 +316,11 @@ class RelayEngine(
                 sendTotal++
                 o?.let { it.sentTo += peerId; it.sendCount++ }
                 record(LogEvent.SENT, e.id, origin = mineLetter?.originId, dest = e.destId, status = mineLetter?.status,
-                    peerId = peerId, sentAt = e.createdAt, hop = e.hop, ttl = e.ttl, peerContacts = p.contacts, sendCountMessage = o?.sendCount)
+                    peerId = peerId, sentAt = e.createdAt, hop = e.hop, ttl = e.ttl, peerContacts = p.contacts, sendCountMessage = o?.sendCount, transferMs = took)
             } else {
                 p.retryAfter = clock() + config.retryBackoffMs
                 record(LogEvent.SEND_FAILED, e.id, origin = mineLetter?.originId, dest = e.destId, status = mineLetter?.status,
-                    peerId = peerId, sentAt = e.createdAt, hop = e.hop, ttl = e.ttl, peerContacts = p.contacts, sendCountMessage = o?.sendCount)
+                    peerId = peerId, sentAt = e.createdAt, hop = e.hop, ttl = e.ttl, peerContacts = p.contacts, sendCountMessage = o?.sendCount, transferMs = took)
             }
         }
         notifyChanged()
@@ -346,6 +358,8 @@ class RelayEngine(
         ttl: Int? = null,
         peerContacts: Int? = peerId?.let { peers[it]?.contacts },
         sendCountMessage: Int? = null,
+        rssi: Int? = peerId?.let { peers[it]?.lastRssi },
+        transferMs: Long? = null,
         note: String? = null,
     ) {
         log.record(
@@ -366,6 +380,8 @@ class RelayEngine(
                 peerContactCount = peerContacts,
                 sendCountMessage = sendCountMessage,
                 sendCountTotal = sendTotal,
+                rssi = rssi,
+                transferMs = transferMs,
                 note = note,
             ),
         )

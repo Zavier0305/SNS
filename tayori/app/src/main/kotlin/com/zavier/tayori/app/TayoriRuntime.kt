@@ -1,13 +1,17 @@
 package com.zavier.tayori.app
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import android.util.Base64
 import com.zavier.tayori.core.Contact
 import com.zavier.tayori.core.ContactBook
 import com.zavier.tayori.core.ContactCode
 import com.zavier.tayori.core.DeviceId
 import com.zavier.tayori.core.Identity
+import com.zavier.tayori.core.RelayConfig
 import com.zavier.tayori.core.RelayEngine
+import com.zavier.tayori.core.SafetyStatus
 import java.io.File
 import java.util.concurrent.CopyOnWriteArraySet
 
@@ -25,6 +29,9 @@ object TayoriRuntime {
     private const val KEY_PRIVATE = "private_key"
     private const val KEY_PUBLIC = "public_key"
     private const val KEY_CONTACTS = "contacts"
+    private const val KEY_EXPERIMENT = "experiment_mode"
+    private const val KEY_AUTO_DEST = "auto_dest"
+    private const val KEY_AUTO_INTERVAL = "auto_interval_sec"
 
     private lateinit var appContext: Context
     lateinit var log: CsvFileLog
@@ -43,6 +50,9 @@ object TayoriRuntime {
         private set
 
     private val listeners = CopyOnWriteArraySet<() -> Unit>()
+
+    /** いまの engine が実験モードで作られたか。 */
+    private var engineExperiment = false
 
     @Synchronized
     fun init(context: Context) {
@@ -116,6 +126,89 @@ object TayoriRuntime {
     const val MAX_NAME_LENGTH = 20
     private const val KEY_NAME_PREFIX = "contact_name_"
 
+    // ---------------------------------------------------------------- 実験モード
+
+    /**
+     * 実験モード: 周りに見せるIDを端末IDに固定し(15分ごとに変えない)、電波の強さを5秒ごとに記録する。
+     * 追跡されやすくなるので普段はオフ。切り替えは中継を止めているときだけ(動作中の通信路の設定は変えられないため)。
+     */
+    var experimentMode: Boolean
+        get() = prefs.getBoolean(KEY_EXPERIMENT, false)
+        set(value) {
+            check(!running) { "動作中は切り替えられません" }
+            prefs.edit().putBoolean(KEY_EXPERIMENT, value).apply()
+            notifyChanged()
+        }
+
+    private const val RSSI_SAMPLE_MS = 5_000L
+    const val MIN_AUTO_INTERVAL_SEC = 10
+    const val MAX_AUTO_INTERVAL_SEC = 3_600
+    /** 1回の自動送信で送る上限。自分のメッセージは預かり枠から捨てないので、送りすぎて溜まり続けないように止める。 */
+    const val MAX_AUTO_COUNT = 200
+
+    private val main = Handler(Looper.getMainLooper())
+
+    /** 自動送信の宛先。null なら止まっている。 */
+    @Volatile
+    var autoDest: String? = null
+        private set
+
+    @Volatile
+    var autoCount = 0
+        private set
+
+    var autoIntervalSec: Int
+        get() = prefs.getInt(KEY_AUTO_INTERVAL, 30)
+        private set(value) = prefs.edit().putInt(KEY_AUTO_INTERVAL, value).apply()
+
+    /** 前回の自動送信の宛先(入力欄の初期値)。 */
+    val lastAutoDest: String get() = prefs.getString(KEY_AUTO_DEST, "").orEmpty()
+
+    private val autoTick = object : Runnable {
+        override fun run() {
+            val dest = autoDest ?: return
+            val e = engine
+            if (!running || e == null) return stopAutoSend("中継が止まったため")
+            if (autoCount >= MAX_AUTO_COUNT) return stopAutoSend("上限の${MAX_AUTO_COUNT}通を送ったため")
+            autoCount++
+            val failure = runCatching { e.sendMessage(dest, SafetyStatus.SAFE, "自動#$autoCount", logNote = "自動送信 #$autoCount") }.exceptionOrNull()
+            if (failure != null) return stopAutoSend("送れなかったため(${failure.message})")
+            main.postDelayed(this, autoIntervalSec * 1000L)
+        }
+    }
+
+    /**
+     * [dest] へ [intervalSec] 秒ごとに「無事」を自動で送る(すぐに1通目を送る)。
+     * 実験モードで中継中のときだけ使える。宛先が連絡先にないなどで送れなければ null 以外の理由を返す。
+     */
+    fun startAutoSend(dest: String, intervalSec: Int): String? {
+        if (!running || !experimentMode) return "実験モードで中継を開始してから使えます"
+        if (contacts().none { it.id == dest }) return "「$dest」は連絡先に登録されていません"
+        if (intervalSec !in MIN_AUTO_INTERVAL_SEC..MAX_AUTO_INTERVAL_SEC) return "間隔は${MIN_AUTO_INTERVAL_SEC}〜${MAX_AUTO_INTERVAL_SEC}秒にしてください"
+        main.removeCallbacks(autoTick)
+        autoIntervalSec = intervalSec
+        prefs.edit().putString(KEY_AUTO_DEST, dest).apply()
+        autoCount = 0
+        autoStopReason = null
+        autoDest = dest
+        main.post(autoTick)
+        notifyChanged()
+        return null
+    }
+
+    /** 自動送信が最後に止まった理由(自分で止めたときは null)。 */
+    @Volatile
+    var autoStopReason: String? = null
+        private set
+
+    fun stopAutoSend(reason: String? = null) {
+        main.removeCallbacks(autoTick)
+        if (autoDest == null) return
+        autoDest = null
+        autoStopReason = reason
+        notifyChanged()
+    }
+
     // ---------------------------------------------------------------- 開始・停止
 
     /** TayoriService から呼ぶ。 */
@@ -123,14 +216,17 @@ object TayoriRuntime {
     fun start() {
         if (running) return
         val id = deviceId
-        // 端末IDが同じなら前回のエンジンを使い回す(停止→再開しても受信済みIDを忘れず、重複排除が続くように)
-        val e = engine?.takeIf { it.selfId == id } ?: run {
-            val t = BleTransport(appContext)
+        val exp = experimentMode
+        // 端末IDと実験モードが同じなら前回のエンジンを使い回す(停止→再開しても受信済みIDを忘れず、重複排除が続くように)
+        val e = engine?.takeIf { it.selfId == id && engineExperiment == exp } ?: run {
+            val t = BleTransport(appContext, fixedHandle = if (exp) id else null)
             t.onStatusChanged = ::notifyChanged
             transport = t
-            RelayEngine(identity(), book, t, log).also { it.onChanged = ::notifyChanged }
+            val config = RelayConfig(rssiSampleMs = if (exp) RSSI_SAMPLE_MS else 0)
+            RelayEngine(identity(), book, t, log, config).also { it.onChanged = ::notifyChanged }
         }
         engine = e
+        engineExperiment = exp
         e.start()
         running = true
         notifyChanged()
@@ -139,6 +235,7 @@ object TayoriRuntime {
     @Synchronized
     fun stop() {
         if (!running) return
+        stopAutoSend("中継を止めたため")
         engine?.stop()
         running = false
         notifyChanged()
